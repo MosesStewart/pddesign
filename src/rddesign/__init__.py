@@ -1,6 +1,6 @@
-from .main import ObjectOfInterest
-from . import helpers
-__version__ = "3.0.1"
+from .main import *#ObjectOfInterest
+from . import *#helpers
+__version__ = "0.0.0"
 __all__ = []
 
 """
