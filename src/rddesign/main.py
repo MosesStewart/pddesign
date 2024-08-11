@@ -16,7 +16,7 @@ class RDD():
             self.y_name = outcome.columns[0]
         elif type(outcome) == np.ndarray:
             self.y = np.reshape(outcome, (outcome.shape[0], 1))
-            
+        
         self.n = self.y.shape[0]
         
         if type(runv) == pd.DataFrame:
@@ -24,19 +24,22 @@ class RDD():
             self.d_name = runv.columns[0]
         elif type(runv) == np.ndarray:
             self.d = np.reshape(runv, (self.n, 1))
-            
+        
         if type(exog) == pd.DataFrame:
             self.x = exog.to_numpy()
             self.x_names = exog.columns
         elif type(exog) == np.ndarray:
-            self.x = np.reshape(exog, (self.n, 1))
+            if exog.ndim == 1:
+                self.x = exog.reshape((self.n, 1))
+            else:
+                self.x = exog
         else:
             self.x = None
-            
+        
         if type(treatmnt) == pd.DataFrame:
             self.a = treatmnt.to_numpy()
             self.a_names = treatmnt.columns
-        elif type(exog) == np.ndarray:
+        elif type(treatmnt) == np.ndarray:
             self.a = np.reshape(treatmnt, (self.n, 1))
         else:
             self.a = np.where(self.d.flatten() > cutoff, 1, 0)
@@ -48,6 +51,54 @@ class RDD():
             self.weights = weights.flatten()/np.mean(weights.flatten())
         else:
             self.weights = np.ones(self.n)
+        
+    def continuity_test(self, model = "local linear", residualize = False, **kwargs):
+        '''
+        Following Lee and Lemieux (2010), estimates the treatment effect using
+            exogenous variables as placebo outcomes, and performs a joint Wald
+            hypothesis test that the effects are not equal to zero. A higher
+            pvalue is stronger evidence of no discontinuity
+        :param model: One of either "local linear" or "polynomial" to determine
+            which model to use in estimation
+        :param residualize: Before estimation, whether to residualize the placebo
+            outcomes using the other exogenous variables
+        '''
+        if type(self.x) == type(None):
+            raise ValueError("You must include exogenous variables in the model to perform a continuity test. ")
+        # Save original specification
+        y = self.y
+        x = self.x
+        
+        res = HTestResults()
+        res.waldstat, res.params, res.bse = pd.Series(), pd.Series(), pd.Series()
+        res.order, res.bandwidth = pd.Series(), pd.Series()
+        test_stats = np.empty(x.shape[1])
+        for var in range(self.x.shape[1]):
+            placebo = x[:, var]
+            self.y = placebo[:, None]
+            if residualize == True:
+                self.x = np.concatenate([x[:, :var], x[:, (var + 1):]], axis = 1)
+            else:
+                self.x = None
+            if model == "local linear":
+                xresult = self.fit_local_lin(**kwargs)
+            elif model == "polynomial":
+                xresult = self.fit_polynomial(**kwargs)
+            test_stats[var] = (xresult.params["Treatment"]/xresult.bse["Treatment"])**2
+            if type(self.x_names) == type(None):
+                res.waldstat[var] = test_stats[var]
+                res.params[var], res.bse[var ]= xresult.params["Treatment"], xresult.bse["Treatment"]
+                res.bandwidth[var], res.order[var] = xresult.bandwidth, xresult.order
+            else:
+                res.waldstat[self.x_names[var]] = test_stats[var]
+                res.params[self.x_names[var]], res.bse[self.x_names[var]] = xresult.params["Treatment"], xresult.bse["Treatment"]
+                res.bandwidth[self.x_names[var]], res.order[self.x_names[var]] = xresult.bandwidth, xresult.order
+
+        self.y = y
+        self.x = x
+        pval = 1 - chi2.cdf(np.sum(test_stats), df = test_stats.shape[0])
+        res.pvalue, res.model, res.n = pval, model, self.n
+        return res
         
     def fit_polynomial(self, order = None, **kwargs):
         '''
@@ -62,10 +113,10 @@ class RDD():
         
         isright = np.where(self.d >= self.cutoff, 1, 0)
         W = np.diag(self.weights)
-        if not self.x == None:
+        if not type(self.x) == type(None):
             Y = self.y
             x = self.x
-            X = np.concatenate([isright, x, np.ones((self.n, 1)), isright * x], axis = 1)
+            X = np.concatenate([x, np.ones((self.n, 1))], axis = 1)
             Y = Y - X @ np.linalg.inv(X.T @ W @ X) @ X.T @ W @ Y
         else:
             Y = self.y
@@ -76,17 +127,18 @@ class RDD():
         r = Y - X @ coefs
         M = np.diag(r.flatten()**2)
         varcov = np.linalg.inv(X.T @ W @ X) @ X.T @ W @ M @ W.T @ X @ np.linalg.inv(X.T @ W @ X)
-        tstat = np.sqrt(self.n - 4) * coefs[0, 0]/np.sqrt(varcov[0, 0])
-        pval = min(t.cdf(tstat, self.n - 4) + (1 - t.cdf(-tstat, self.n - 4)), t.cdf(-tstat, self.n - 4) + (1 - t.cdf(tstat, self.n - 4)))
+        tstat = coefs[0, 0]/np.sqrt(varcov[0, 0])
+        pval = min(t.cdf(tstat, df = self.n - 4) + (1 - t.cdf(-tstat, df = self.n - 4)), 
+                   t.cdf(-tstat, df = self.n - 4) + (1 - t.cdf(tstat, df = self.n - 4)))
         
         results = Results()
         results.params = pd.Series({'Treatment': coefs[0, 0]}, name = 'Estimated effect')
         results.bse = pd.Series({'Treatment': np.sqrt(varcov[0, 0])}, name = 'Standard error')
         results.resid = r.flatten()
         results.tvalues = pd.Series({'Treatment': tstat}, name = 't-statistic')
-        results.pvalues = pd.Series({'Treatment': pval}, name = 'p-value != 0')
+        results.pvalues = pd.Series({'Treatment': pval}, name = 'p-value > |t|')
         results.order = self.order
-        results.model = 'Sharp Polynomial Regression'
+        results.model = 'polynomial'
         results.d_name = self.d_name
         results.y_name = self.y_name
         results.n = self.n
@@ -112,10 +164,10 @@ class RDD():
         W = np.diag(self.weights[use])
         
         # Residualize Y with respect to exogenous covariates
-        if not self.x == None:
+        if not type(self.x) == type(None):
             Y = self.y[use, :]
             x = self.x[use, :]
-            X = np.concatenate([isright, x, np.ones((n, 1)), isright * x], axis = 1)
+            X = np.concatenate([x, np.ones((n, 1))], axis = 1)
             Y = Y - X @ np.linalg.inv(X.T @ W @ X) @ X.T @ W @ Y
         else:
             Y = self.y[use,:]
@@ -125,7 +177,7 @@ class RDD():
         r = Y - X @ coefs
         M = np.diag(r.flatten()**2)
         varcov = np.linalg.inv(X.T @ W @ X) @ X.T @ W @ M @ W.T @ X @ np.linalg.inv(X.T @ W @ X)
-        tstat = np.sqrt(n - 4) * coefs[0, 0]/np.sqrt(varcov[0, 0])
+        tstat = coefs[0, 0]/np.sqrt(varcov[0, 0])
         pval = min(t.cdf(tstat, n - 4) + (1 - t.cdf(-tstat, n - 4)), t.cdf(-tstat, n - 4) + (1 - t.cdf(tstat, n - 4)))
         
         results = Results()
@@ -133,17 +185,17 @@ class RDD():
         results.bse = pd.Series({'Treatment': np.sqrt(varcov[0, 0])}, name = 'Standard error')
         results.resid = r.flatten()
         results.tvalues = pd.Series({'Treatment': tstat}, name = 't-statistic')
-        results.pvalues = pd.Series({'Treatment': pval}, name = 'p-value != 0')
+        results.pvalues = pd.Series({'Treatment': pval}, name = 'p-value > |t|')
         results.bandwidth = self.bandwidth
-        results.model = 'Sharp Local Linear Regression'
+        results.model = 'local linear'
         results.d_name = self.d_name
         results.y_name = self.y_name
         results.n = n
         return results
 
-    def _find_order(self, method = 'significance bins', **kwargs):
+    def _find_order(self, method = 'aic', **kwargs):
         if method.lower() == 'significance bins':
-            self._find_order_sb()
+            self._find_order_sb(**kwargs)
         elif method.lower() == 'aic':
             self._find_order_aic()
     
@@ -153,8 +205,8 @@ class RDD():
             such that the null hypothesis that the coefficients for the
             indicator of being in a bin is zero
         
-        :param nbins: Number of bins to use in chi-2 test
-        :param pval: Probability tolerance for chi-2 test
+        :param nbins: Number of bins to use in wald test
+        :param pval: Probability tolerance for wald test
         '''
         if nbins == None:
             nbins = int(self.n/20)
@@ -166,10 +218,10 @@ class RDD():
         indicators = np.concatenate(indicators, axis = 1)
         isright = np.where(self.d >= self.cutoff, 1, 0)
         W = np.diag(self.weights)
-        if not self.x == None:
+        if not type(self.x) == type(None):
             Y = self.y
             x = self.x
-            X = np.concatenate([isright, x, np.ones((self.n, 1)), isright * x], axis = 1)
+            X = np.concatenate([x, np.ones((self.n, 1))], axis = 1)
             Y = Y - X @ np.linalg.inv(X.T @ W @ X) @ X.T @ W @ Y
         else:
             Y = self.y
@@ -200,10 +252,10 @@ class RDD():
         '''
         isright = np.where(self.d >= self.cutoff, 1, 0)
         W = np.diag(self.weights)
-        if not self.x == None:
+        if not type(self.x) == type(None):
             Y = self.y
             x = self.x
-            X = np.concatenate([isright, x, np.ones((self.n, 1)), isright * x], axis = 1)
+            X = np.concatenate([x, np.ones((self.n, 1))], axis = 1)
             Y = Y - X @ np.linalg.inv(X.T @ W @ X) @ X.T @ W @ Y
         else:
             Y = self.y
@@ -222,10 +274,9 @@ class RDD():
         cur_loss = aic_loss(order)
         while prev_loss[1] >= prev_loss[0] and prev_loss[1] >= cur_loss:
             order += 1
-            prev_loss[0] = cur_loss
             prev_loss[1] = prev_loss[0]
+            prev_loss[0] = cur_loss
             cur_loss = aic_loss(order)
-        
         self.order = order - 2
         
     def _find_bandwidth(self):
@@ -252,7 +303,7 @@ class RDD():
                     d = left_grid[i, 0]
                     use = np.where((self.d.flatten() >= d - h) & (self.d.flatten() < d))[0]
                     W = np.diag(self.weights[use]/np.mean(self.weights[use]))
-                    if not self.x == None:
+                    if not type(self.x) == type(None):
                         Y = self.y[use, :]
                         x = self.x[use, :]
                         X = np.concatenate([x, np.ones((use.shape[0], 1)),], axis = 1)
@@ -267,7 +318,7 @@ class RDD():
                     d = right_grid[i, 0]
                     use = np.where((self.d.flatten() <= d + h) & (self.d.flatten() > d))[0]
                     W = np.diag(self.weights[use]/np.mean(self.weights[use]))
-                    if not self.x == None:
+                    if not type(self.x) == type(None):
                         Y = self.y[use, :]
                         x = self.x[use, :]
                         X = np.concatenate([x, np.ones((use.shape[0], 1)),], axis = 1)
@@ -311,12 +362,12 @@ class Results():
         print(''.center(length, '='))
         print(f'Dep. Variable:'.ljust(20) + str(self.y_name).rjust(28) + ''.center(4) + 
               f'Run. Variable:'.ljust(20) + str(self.d_name).rjust(28))
-        print(f'Model:'.ljust(20) + 'Local Linear'.rjust(28) + ''.center(4) + 
+        print(f'Model:'.ljust(20) + self.model.rjust(28) + ''.center(4) + 
               f'No. Observations:'.ljust(20) + str(self.n).rjust(28))
-        if self.model == 'Sharp Local Linear Regression':
+        if self.model == 'local linear':
             print(f'Covariance Type:'.ljust(20) + 'Heteroskedasticity-robust'.rjust(28) + ''.center(4) + 
               f'Bandwidth:'.ljust(20) + f'{self.bandwidth:.3f}'.rjust(28))
-        elif self.model == 'Sharp Polynomial Regression':
+        elif self.model == 'polynomial':
             print(f'Covariance Type:'.ljust(20) + 'Heteroskedasticity-robust'.rjust(28) + ''.center(4) + 
               f'Polynomial Order:'.ljust(20) + f'{self.order:d}'.rjust(28))
         print(''.center(length, '='))
@@ -327,7 +378,44 @@ class Results():
               f'{self.tvalues['Treatment']:.3f}'.rjust(10) + f'{self.pvalues['Treatment']:.3f}'.rjust(10) +
               f'{left_ci:.3f}'.rjust(10) + f'{right_ci:.3f}'.rjust(10))
         print(''.center(length, '='))
-        
+
+class HTestResults():
+    def __init__(self):
+        self.params = None
+        self.bse = None
+        self.n = None
+        self.order = None
+        self.d_name = None
+        self.model = None
+        self.waldstat = None
+        self.bandwidth = None
+        self.pvalue = None
+    
+    def summary(self):
+        length = 100
+        print((self.model + " Continuity Wald Test").center(length))
+        print(''.center(length, '='))
+        print(f'Model:'.ljust(20) + self.model.rjust(28) + ''.center(4) + 
+              f'Run. Variable:'.ljust(20) + str(self.d_name).rjust(28))
+        print(f'Covariance Type:'.ljust(20) + 'Heteroskedasticity-robust'.rjust(28) + ''.center(4) + 
+              f'No. Observations:'.ljust(20) + str(self.n).rjust(28))
+        print(f'Joint pvalue:'.ljust(20) + f'{self.pvalue:.3f}'.rjust(28) + ''.center(4) + 
+              f''.ljust(20) + f''.rjust(28))
+        print(''.center(length, '='))
+        print('Dep. Variable'.ljust(20) + 'Treatment ...'.rjust(20) + 'coef'.rjust(12) + 'std err'.rjust(12) + 'waldstat'.rjust(12) + 
+              'order'.rjust(12) + 'bandwidth'.rjust(12))
+        print(''.center(length, '-'))
+        for var in self.params.index:
+            if self.model == 'local linear':
+                print(str(var).ljust(40) + f'{self.params[var]:.3f}'.rjust(12) + f'{self.bse[var]:.3f}'.rjust(12) +
+                    f'{self.waldstat[var]:.3f}'.rjust(12) + str(None).rjust(12) +
+                    f'{self.bandwidth[var]:.3f}'.rjust(12))
+            elif self.model == 'polynomial':
+                print(str(var).ljust(40) + f'{self.params[var]:.3f}'.rjust(12) + f'{self.bse[var]:.3f}'.rjust(12) +
+                    f'{self.waldstat[var]:.3f}'.rjust(12) + f'{self.order[var]:.3f}'.rjust(12) +
+                    str(None).rjust(12))       
+        print(''.center(length, '='))
+
 class PDD():
     
     def __init__(self, outcome, runv, exog, ptreat, poutcome, cutoff, **kwargs):
@@ -336,3 +424,6 @@ class PDD():
         self.x_names = None
         self.z_names = None
         self.w_names = None
+
+class Object(object):
+    pass
