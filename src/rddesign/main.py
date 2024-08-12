@@ -1,10 +1,10 @@
 import numpy as np, pandas as pd, warnings
-from scipy.optimize import minimize
+from scipy.optimize import minimize, Bounds
 from scipy.stats import t, chi2
+from helpers import *
 
 class RDD():
-    
-    def __init__(self, outcome, runv, cutoff, treatmnt = None, exog = None, weights = None, **kwargs):
+    def __init__(self, outcome, runv, cutoff, treatment = None, exog = None, weights = None):
         self.y_name = None
         self.d_name = None
         self.x_names = None
@@ -36,11 +36,11 @@ class RDD():
         else:
             self.x = None
         
-        if type(treatmnt) == pd.DataFrame:
-            self.a = treatmnt.to_numpy()
-            self.a_names = treatmnt.columns
-        elif type(treatmnt) == np.ndarray:
-            self.a = np.reshape(treatmnt, (self.n, 1))
+        if type(treatment) == pd.DataFrame:
+            self.a = treatment.to_numpy()
+            self.a_names = treatment.columns
+        elif type(treatment) == np.ndarray:
+            self.a = np.reshape(treatment, (self.n, 1))
         else:
             self.a = np.where(self.d.flatten() > cutoff, 1, 0)
         
@@ -52,6 +52,143 @@ class RDD():
         else:
             self.weights = np.ones(self.n)
         
+    def fit(self, model = "local linear", design = 'sharp', bootstrap = False, **kwargs):
+        if model == "local linear":
+            res = self.fit_local_lin(design = design, **kwargs)
+            if bootstrap:
+                res.replicates = self.bootstrap(model = "local linear", design = design,
+                                                bandwidth = res.bandwidth, **kwargs)
+                res.bse = pd.Series({'Treatment': np.std(res.replicates)}, name = 'Standard error')
+        elif model == "polynomial":
+            res = self.fit_polynomial(design = design, **kwargs)
+            if bootstrap:
+                res.replicates = self.bootstrap(model = "polynomial", design = design,
+                                                order = res.order,  **kwargs)
+                res.bse = pd.Series({'Treatment': np.std(res.replicates)}, name = 'Standard error')
+        return res
+
+    def bootstrap(self, nreps = 200, seed = 10042002, model = 'local linear', design = 'fuzzy', **kwargs):
+        rng = np.random.default_rng(seed = seed)
+        w0 = self.weights
+        weights = rng.exponential(1, size = (self.n, nreps))
+        weights = weights/np.sum(weights, axis = 0) * w0[:, None]
+        reps = np.empty(nreps)
+        for i in range(nreps):
+            self.weights = weights[:, i]
+            if model == 'local linear':
+                res = self.fit_local_lin(design = design, **kwargs)
+            elif model == 'polynomial':
+                res = self.fit_polynomial(design = design, **kwargs)
+            reps[i] = res.params['Treatment']
+        self.weights = w0
+        return reps
+        
+    def fit_polynomial(self, order = None, design = 'sharp', **kwargs):
+        '''
+        Fits the model with a polynomial
+        
+        :param order: the order of the polynomial function
+        '''
+        if order == None:
+            self._find_order(**kwargs)
+        else:
+            self.order = order
+        
+        isright = np.where(self.d >= self.cutoff, 1, 0)
+        W = np.diag(self.weights)
+        if not type(self.x) == type(None):
+            Y = self.y
+            x = self.x
+            X = np.concatenate([x, np.ones((self.n, 1))], axis = 1)
+            Y = Y - X @ np.linalg.inv(X.T @ W @ X) @ X.T @ W @ Y
+        else:
+            Y = self.y
+        X = np.concatenate([isright, np.ones((self.n, 1))], axis = 1)
+        for pow in range(1, self.order + 1):
+            X = np.concatenate([X, (self.d - self.cutoff)**pow, isright * (self.d - self.cutoff)**pow], axis = 1)
+        if design == 'sharp':
+            coefs = np.linalg.inv(X.T @ W @ X) @ X.T @ W @ Y
+            r = Y - X @ coefs
+            M = np.diag(r.flatten()**2)
+            varcov = np.linalg.inv(X.T @ W @ X) @ X.T @ W @ M @ W.T @ X @ np.linalg.inv(X.T @ W @ X)
+            tstat = coefs[0, 0]/np.sqrt(varcov[0, 0])
+            pval = min(t.cdf(tstat, df = self.n - 4) + (1 - t.cdf(-tstat, df = self.n - 4)), 
+                    t.cdf(-tstat, df = self.n - 4) + (1 - t.cdf(tstat, df = self.n - 4)))
+            results = SharpResults()
+            results.params = pd.Series({'Treatment': coefs[0, 0]}, name = 'Estimated effect')
+            results.bse = pd.Series({'Treatment': np.sqrt(varcov[0, 0])}, name = 'Standard error')
+            results.resid = r.flatten()
+            results.tvalues = pd.Series({'Treatment': tstat}, name = 't-statistic')
+            results.pvalues = pd.Series({'Treatment': pval}, name = 'p-value > |t|')
+        elif design == 'fuzzy':
+            A = self.a
+            Ahat = X @ np.linalg.inv(X.T @ W @ X) @ X.T @ W @ A
+            X[:, 0] = Ahat.flatten()
+            coefs = np.linalg.inv(X.T @ W @ X) @ X.T @ W @ Y
+            results = FuzzyResults()
+            results.params = pd.Series({'Treatment': coefs[0, 0]}, name = 'Estimated effect')
+        results.order = self.order
+        results.model = 'polynomial'
+        results.d_name = self.d_name
+        results.y_name = self.y_name
+        results.n = self.n
+        return results
+        
+    def fit_local_lin(self, bandwidth = None, design = 'sharp', **kwargs):
+        '''
+        Fits the model using a local linear regression
+        
+        :param bandwidth: the width of the window to the left and
+            right of the cutoff to use for the local regression
+        '''
+        if bandwidth == None:
+            self._find_bandwidth()
+        else:
+            self.bandwidth = bandwidth
+        
+        use = np.where((self.cutoff - self.bandwidth <= self.d) & (self.cutoff + self.bandwidth >= self.d))[0]
+        n = use.shape[0]
+        
+        d = self.d[use,:] - self.cutoff
+        isright = np.where(d >= self.cutoff, 1, 0)
+        W = np.diag(self.weights[use])
+        
+        # Residualize Y with respect to exogenous covariates
+        if not type(self.x) == type(None):
+            Y = self.y[use, :]
+            x = self.x[use, :]
+            X = np.concatenate([x, np.ones((n, 1))], axis = 1)
+            Y = Y - X @ np.linalg.inv(X.T @ W @ X) @ X.T @ W @ Y
+        else:
+            Y = self.y[use,:]
+        X = np.concatenate([isright, np.ones((n, 1)), d, isright * d], axis = 1)
+        if design == 'sharp':
+            coefs = np.linalg.inv(X.T @ W @ X) @ X.T @ W @ Y
+            r = Y - X @ coefs
+            M = np.diag(r.flatten()**2)
+            varcov = np.linalg.inv(X.T @ W @ X) @ X.T @ W @ M @ W.T @ X @ np.linalg.inv(X.T @ W @ X)
+            tstat = coefs[0, 0]/np.sqrt(varcov[0, 0])
+            pval = min(t.cdf(tstat, n - 4) + (1 - t.cdf(-tstat, n - 4)), t.cdf(-tstat, n - 4) + (1 - t.cdf(tstat, n - 4)))
+            results = SharpResults()
+            results.params = pd.Series({'Treatment': coefs[0, 0]}, name = 'Estimated effect')
+            results.bse = pd.Series({'Treatment': np.sqrt(varcov[0, 0])}, name = 'Standard error')
+            results.resid = r.flatten()
+            results.tvalues = pd.Series({'Treatment': tstat}, name = 't-statistic')
+            results.pvalues = pd.Series({'Treatment': pval}, name = 'p-value > |t|')
+        elif design == 'fuzzy':
+            A = self.a[use, :]
+            Ahat = X @ np.linalg.inv(X.T @ W @ X) @ X.T @ W @ A
+            X[:, 0] = Ahat.flatten()
+            coefs = np.linalg.inv(X.T @ W @ X) @ X.T @ W @ Y
+            results = FuzzyResults()
+            results.params = pd.Series({'Treatment': coefs[0, 0]}, name = 'Estimated effect')
+        results.bandwidth = self.bandwidth
+        results.model = 'local linear'
+        results.d_name = self.d_name
+        results.y_name = self.y_name
+        results.n = n
+        return results
+
     def continuity_test(self, model = "local linear", residualize = False, **kwargs):
         '''
         Following Lee and Lemieux (2010), estimates the treatment effect using
@@ -99,104 +236,11 @@ class RDD():
         pval = 1 - chi2.cdf(np.sum(test_stats), df = test_stats.shape[0])
         res.pvalue, res.model, res.n = pval, model, self.n
         return res
-        
-    def fit_polynomial(self, order = None, **kwargs):
-        '''
-        Fits the model with a polynomial
-        
-        :param order: the order of the polynomial function
-        '''
-        if order == None:
-            self._find_order(**kwargs)
-        else:
-            self.order = order
-        
-        isright = np.where(self.d >= self.cutoff, 1, 0)
-        W = np.diag(self.weights)
-        if not type(self.x) == type(None):
-            Y = self.y
-            x = self.x
-            X = np.concatenate([x, np.ones((self.n, 1))], axis = 1)
-            Y = Y - X @ np.linalg.inv(X.T @ W @ X) @ X.T @ W @ Y
-        else:
-            Y = self.y
-        X = np.concatenate([isright, np.ones((self.n, 1))], axis = 1)
-        for pow in range(1, self.order + 1):
-            X = np.concatenate([X, (self.d - self.cutoff)**pow, isright * (self.d - self.cutoff)**pow], axis = 1)
-        coefs = np.linalg.inv(X.T @ W @ X) @ X.T @ W @ Y
-        r = Y - X @ coefs
-        M = np.diag(r.flatten()**2)
-        varcov = np.linalg.inv(X.T @ W @ X) @ X.T @ W @ M @ W.T @ X @ np.linalg.inv(X.T @ W @ X)
-        tstat = coefs[0, 0]/np.sqrt(varcov[0, 0])
-        pval = min(t.cdf(tstat, df = self.n - 4) + (1 - t.cdf(-tstat, df = self.n - 4)), 
-                   t.cdf(-tstat, df = self.n - 4) + (1 - t.cdf(tstat, df = self.n - 4)))
-        
-        results = Results()
-        results.params = pd.Series({'Treatment': coefs[0, 0]}, name = 'Estimated effect')
-        results.bse = pd.Series({'Treatment': np.sqrt(varcov[0, 0])}, name = 'Standard error')
-        results.resid = r.flatten()
-        results.tvalues = pd.Series({'Treatment': tstat}, name = 't-statistic')
-        results.pvalues = pd.Series({'Treatment': pval}, name = 'p-value > |t|')
-        results.order = self.order
-        results.model = 'polynomial'
-        results.d_name = self.d_name
-        results.y_name = self.y_name
-        results.n = self.n
-        return results
-        
-    def fit_local_lin(self, bandwidth = None):
-        '''
-        Fits the model using a local linear regression
-        
-        :param bandwidth: the width of the window to the left and
-            right of the cutoff to use for the local regression
-        '''
-        if bandwidth == None:
-            self._find_bandwidth()
-        else:
-            self.bandwidth = bandwidth
-        
-        use = np.where((self.cutoff - self.bandwidth <= self.d) & (self.cutoff + self.bandwidth >= self.d))[0]
-        n = use.shape[0]
-        
-        d = self.d[use,:] - self.cutoff
-        isright = np.where(d >= self.cutoff, 1, 0)
-        W = np.diag(self.weights[use])
-        
-        # Residualize Y with respect to exogenous covariates
-        if not type(self.x) == type(None):
-            Y = self.y[use, :]
-            x = self.x[use, :]
-            X = np.concatenate([x, np.ones((n, 1))], axis = 1)
-            Y = Y - X @ np.linalg.inv(X.T @ W @ X) @ X.T @ W @ Y
-        else:
-            Y = self.y[use,:]
-        X = np.concatenate([isright, np.ones((n, 1)), d, isright * d], axis = 1)
-        coefs = np.linalg.inv(X.T @ W @ X) @ X.T @ W @ Y
-        
-        r = Y - X @ coefs
-        M = np.diag(r.flatten()**2)
-        varcov = np.linalg.inv(X.T @ W @ X) @ X.T @ W @ M @ W.T @ X @ np.linalg.inv(X.T @ W @ X)
-        tstat = coefs[0, 0]/np.sqrt(varcov[0, 0])
-        pval = min(t.cdf(tstat, n - 4) + (1 - t.cdf(-tstat, n - 4)), t.cdf(-tstat, n - 4) + (1 - t.cdf(tstat, n - 4)))
-        
-        results = Results()
-        results.params = pd.Series({'Treatment': coefs[0, 0]}, name = 'Estimated effect')
-        results.bse = pd.Series({'Treatment': np.sqrt(varcov[0, 0])}, name = 'Standard error')
-        results.resid = r.flatten()
-        results.tvalues = pd.Series({'Treatment': tstat}, name = 't-statistic')
-        results.pvalues = pd.Series({'Treatment': pval}, name = 'p-value > |t|')
-        results.bandwidth = self.bandwidth
-        results.model = 'local linear'
-        results.d_name = self.d_name
-        results.y_name = self.y_name
-        results.n = n
-        return results
-
-    def _find_order(self, method = 'aic', **kwargs):
-        if method.lower() == 'significance bins':
+    
+    def _find_order(self, optimization = 'aic', **kwargs):
+        if optimization.lower() == 'significance bins':
             self._find_order_sb(**kwargs)
-        elif method.lower() == 'aic':
+        elif optimization.lower() == 'aic':
             self._find_order_aic()
     
     def _find_order_sb(self, nbins = None, pval = 0.05):
@@ -279,14 +323,20 @@ class RDD():
             cur_loss = aic_loss(order)
         self.order = order - 2
         
-    def _find_bandwidth(self):
+    def _find_bandwidth(self, h0 = None):
         '''
         Uses the leave-one-out procedure from Jens Ludwig and
             Douglas Miller (2007) and Imbens and Lemieux (2008)
             to compute optimal bandwidth for local linear regression
+        
+        :param h0: The initial bandiwdth used in the optimization
         '''
         d_sorted = np.sort(self.d)
-        h0 = 10 * np.mean(d_sorted[1:] - d_sorted[:-1])
+        hmin = 2 * np.mean(d_sorted[1:] - d_sorted[:-1])
+        hmax = max(np.median(self.d) - np.min(self.d), np.max(self.d) - np.median(self.d))
+        bounds = Bounds(lb = hmin, ub = hmax)
+        if h0 == None:
+            h0 = 1/2 * (np.quantile(self.d, 0.75) - np.quantile(self.d, 0.25))
         
         def bandwidth_loss(h):
             use_left = np.where((self.d.flatten() < self.cutoff) & (self.d.flatten() >= np.min(self.d) + h))[0]
@@ -332,98 +382,15 @@ class RDD():
                 mse = left_weights.T @ (left_est - left_true)**2 + right_weights.T @ (right_est - right_true)**2
                 return mse
 
-        res = minimize(bandwidth_loss, h0, method = "Nelder-Mead")
+        res = minimize(bandwidth_loss, h0, method = "Nelder-Mead", bounds = bounds)
         if not res.success:
             warnings.warn("Warning: the bandwidth optimizer did not converge")
         self.bandwidth = res.x[0]
 
-class Results():
-    def __init__(self):
-        self.params = None
-        self.bse = None
-        self.resid = None
-        self.tvalues = None
-        self.pvalues = None
-        self.bandwidth = None
-        self.predict = None
-        self.n = None
-        self.order = None
-        self.d_name = None
-        self.y_name = None
-        self.model = None
-    
-    def summary(self):
-        if not type(self.bse) == type(None):
-            left_ci = t.ppf(0.025, self.n - 4) * self.bse['Treatment'] + self.params['Treatment']
-            right_ci = t.ppf(0.975, self.n - 4) * self.bse['Treatment'] + self.params['Treatment']
-        
-        length = 100
-        print(self.model.center(length))
-        print(''.center(length, '='))
-        print(f'Dep. Variable:'.ljust(20) + str(self.y_name).rjust(28) + ''.center(4) + 
-              f'Run. Variable:'.ljust(20) + str(self.d_name).rjust(28))
-        print(f'Model:'.ljust(20) + self.model.rjust(28) + ''.center(4) + 
-              f'No. Observations:'.ljust(20) + str(self.n).rjust(28))
-        if self.model == 'local linear':
-            print(f'Covariance Type:'.ljust(20) + 'Heteroskedasticity-robust'.rjust(28) + ''.center(4) + 
-              f'Bandwidth:'.ljust(20) + f'{self.bandwidth:.3f}'.rjust(28))
-        elif self.model == 'polynomial':
-            print(f'Covariance Type:'.ljust(20) + 'Heteroskedasticity-robust'.rjust(28) + ''.center(4) + 
-              f'Polynomial Order:'.ljust(20) + f'{self.order:d}'.rjust(28))
-        print(''.center(length, '='))
-        print(''.center(40) + 'coef'.rjust(10) + 'std err'.rjust(10) + 't'.rjust(10) + 
-              'P>|t|'.rjust(10) + '[0.025'.rjust(10) + '0.975]'.rjust(10))
-        print(''.center(length, '-'))
-        print('Treatment'.ljust(40) + f'{self.params['Treatment']:.3f}'.rjust(10) + f'{self.bse['Treatment']:.3f}'.rjust(10) +
-              f'{self.tvalues['Treatment']:.3f}'.rjust(10) + f'{self.pvalues['Treatment']:.3f}'.rjust(10) +
-              f'{left_ci:.3f}'.rjust(10) + f'{right_ci:.3f}'.rjust(10))
-        print(''.center(length, '='))
-
-class HTestResults():
-    def __init__(self):
-        self.params = None
-        self.bse = None
-        self.n = None
-        self.order = None
-        self.d_name = None
-        self.model = None
-        self.waldstat = None
-        self.bandwidth = None
-        self.pvalue = None
-    
-    def summary(self):
-        length = 100
-        print((self.model + " Continuity Wald Test").center(length))
-        print(''.center(length, '='))
-        print(f'Model:'.ljust(20) + self.model.rjust(28) + ''.center(4) + 
-              f'Run. Variable:'.ljust(20) + str(self.d_name).rjust(28))
-        print(f'Covariance Type:'.ljust(20) + 'Heteroskedasticity-robust'.rjust(28) + ''.center(4) + 
-              f'No. Observations:'.ljust(20) + str(self.n).rjust(28))
-        print(f'Joint pvalue:'.ljust(20) + f'{self.pvalue:.3f}'.rjust(28) + ''.center(4) + 
-              f''.ljust(20) + f''.rjust(28))
-        print(''.center(length, '='))
-        print('Dep. Variable'.ljust(20) + 'Treatment ...'.rjust(20) + 'coef'.rjust(12) + 'std err'.rjust(12) + 'waldstat'.rjust(12) + 
-              'order'.rjust(12) + 'bandwidth'.rjust(12))
-        print(''.center(length, '-'))
-        for var in self.params.index:
-            if self.model == 'local linear':
-                print(str(var).ljust(40) + f'{self.params[var]:.3f}'.rjust(12) + f'{self.bse[var]:.3f}'.rjust(12) +
-                    f'{self.waldstat[var]:.3f}'.rjust(12) + str(None).rjust(12) +
-                    f'{self.bandwidth[var]:.3f}'.rjust(12))
-            elif self.model == 'polynomial':
-                print(str(var).ljust(40) + f'{self.params[var]:.3f}'.rjust(12) + f'{self.bse[var]:.3f}'.rjust(12) +
-                    f'{self.waldstat[var]:.3f}'.rjust(12) + f'{self.order[var]:.3f}'.rjust(12) +
-                    str(None).rjust(12))       
-        print(''.center(length, '='))
-
 class PDD():
-    
     def __init__(self, outcome, runv, exog, ptreat, poutcome, cutoff, **kwargs):
         self.y_name = None
         self.d_name = None
         self.x_names = None
         self.z_names = None
         self.w_names = None
-
-class Object(object):
-    pass
