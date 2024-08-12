@@ -66,22 +66,6 @@ class RDD():
                                                 order = res.order,  **kwargs)
                 res.bse = pd.Series({'Treatment': np.std(res.replicates)}, name = 'Standard error')
         return res
-
-    def bootstrap(self, nreps = 200, seed = 10042002, model = 'local linear', design = 'fuzzy', **kwargs):
-        rng = np.random.default_rng(seed = seed)
-        w0 = self.weights
-        weights = rng.exponential(1, size = (self.n, nreps))
-        weights = weights/np.sum(weights, axis = 0) * w0[:, None]
-        reps = np.empty(nreps)
-        for i in range(nreps):
-            self.weights = weights[:, i]
-            if model == 'local linear':
-                res = self.fit_local_lin(design = design, **kwargs)
-            elif model == 'polynomial':
-                res = self.fit_polynomial(design = design, **kwargs)
-            reps[i] = res.params['Treatment']
-        self.weights = w0
-        return reps
         
     def fit_polynomial(self, order = None, design = 'sharp', **kwargs):
         '''
@@ -106,8 +90,17 @@ class RDD():
         X = np.concatenate([isright, np.ones((self.n, 1))], axis = 1)
         for pow in range(1, self.order + 1):
             X = np.concatenate([X, (self.d - self.cutoff)**pow, isright * (self.d - self.cutoff)**pow], axis = 1)
+        coefs = np.linalg.inv(X.T @ W @ X) @ X.T @ W @ Y
+        def predict(runv):
+            runv = runv.reshape((runv.shape[0], 1))
+            isright = np.where(runv >= self.cutoff, 1, 0)
+            Xnew = np.concatenate([isright, np.ones((runv.shape[0], 1))], axis = 1)
+            for pow in range(1, self.order + 1):
+                Xnew = np.concatenate([Xnew, (runv - self.cutoff)**pow, isright * (runv - self.cutoff)**pow], axis = 1)
+            Yhat = Xnew @ coefs
+            return Yhat
+
         if design == 'sharp':
-            coefs = np.linalg.inv(X.T @ W @ X) @ X.T @ W @ Y
             r = Y - X @ coefs
             M = np.diag(r.flatten()**2)
             varcov = np.linalg.inv(X.T @ W @ X) @ X.T @ W @ M @ W.T @ X @ np.linalg.inv(X.T @ W @ X)
@@ -124,9 +117,10 @@ class RDD():
             A = self.a
             Ahat = X @ np.linalg.inv(X.T @ W @ X) @ X.T @ W @ A
             X[:, 0] = Ahat.flatten()
-            coefs = np.linalg.inv(X.T @ W @ X) @ X.T @ W @ Y
+            fuz_coefs = np.linalg.inv(X.T @ W @ X) @ X.T @ W @ Y
             results = FuzzyResults()
-            results.params = pd.Series({'Treatment': coefs[0, 0]}, name = 'Estimated effect')
+            results.params = pd.Series({'Treatment': fuz_coefs[0, 0]}, name = 'Estimated effect')
+        results.predict = predict
         results.order = self.order
         results.model = 'polynomial'
         results.d_name = self.d_name
@@ -162,8 +156,15 @@ class RDD():
         else:
             Y = self.y[use,:]
         X = np.concatenate([isright, np.ones((n, 1)), d, isright * d], axis = 1)
+        coefs = np.linalg.inv(X.T @ W @ X) @ X.T @ W @ Y
+        def predict(runv):
+            runv = runv.reshape((runv.shape[0], 1))
+            isright = np.where(runv >= self.cutoff, 1, 0)
+            Xnew = np.concatenate([isright, np.ones((runv.shape[0], 1)), runv, isright * runv], axis = 1)
+            Yhat = Xnew @ coefs
+            return Yhat
+        
         if design == 'sharp':
-            coefs = np.linalg.inv(X.T @ W @ X) @ X.T @ W @ Y
             r = Y - X @ coefs
             M = np.diag(r.flatten()**2)
             varcov = np.linalg.inv(X.T @ W @ X) @ X.T @ W @ M @ W.T @ X @ np.linalg.inv(X.T @ W @ X)
@@ -179,9 +180,10 @@ class RDD():
             A = self.a[use, :]
             Ahat = X @ np.linalg.inv(X.T @ W @ X) @ X.T @ W @ A
             X[:, 0] = Ahat.flatten()
-            coefs = np.linalg.inv(X.T @ W @ X) @ X.T @ W @ Y
+            fuz_coefs = np.linalg.inv(X.T @ W @ X) @ X.T @ W @ Y
             results = FuzzyResults()
-            results.params = pd.Series({'Treatment': coefs[0, 0]}, name = 'Estimated effect')
+            results.params = pd.Series({'Treatment': fuz_coefs[0, 0]}, name = 'Estimated effect')
+        results.predict = predict
         results.bandwidth = self.bandwidth
         results.model = 'local linear'
         results.d_name = self.d_name
@@ -236,6 +238,22 @@ class RDD():
         pval = 1 - chi2.cdf(np.sum(test_stats), df = test_stats.shape[0])
         res.pvalue, res.model, res.n = pval, model, self.n
         return res
+    
+    def bootstrap(self, nreps = 200, seed = 10042002, model = 'local linear', design = 'fuzzy', **kwargs):
+        rng = np.random.default_rng(seed = seed)
+        w0 = self.weights
+        weights = rng.exponential(1, size = (self.n, nreps))
+        weights = weights/np.sum(weights, axis = 0) * w0[:, None]
+        reps = np.empty(nreps)
+        for i in range(nreps):
+            self.weights = weights[:, i]
+            if model == 'local linear':
+                res = self.fit_local_lin(design = design, **kwargs)
+            elif model == 'polynomial':
+                res = self.fit_polynomial(design = design, **kwargs)
+            reps[i] = res.params['Treatment']
+        self.weights = w0
+        return reps
     
     def _find_order(self, optimization = 'aic', **kwargs):
         if optimization.lower() == 'significance bins':

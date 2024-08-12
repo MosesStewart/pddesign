@@ -12,6 +12,7 @@ class FuzzyResults():
         self.d_name = None
         self.y_name = None
         self.model = None
+        self.predict = None
         self.replicates = None
         self.nreps = None
         
@@ -57,6 +58,7 @@ class SharpResults():
         self.bandwidth = None
         self.replicates = None
         self.n = None
+        self.predict = None
         self.order = None
         self.d_name = None
         self.y_name = None

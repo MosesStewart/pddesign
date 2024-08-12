@@ -3,9 +3,11 @@ from main import RDD
 
 def main():
     y, d, x, a = generate_data()
+    xgrid = np.linspace(-2, 2, 20)
     model = RDD(y, d, treatment = a, exog = x, cutoff = 0)
-    res = model.fit(model = 'local linear', design = 'fuzzy', bootstrap = True, nreps = 100)
-    res.summary()
+    res = model.fit(model = 'polynomial', design = 'fuzzy', nreps = 100)
+    yhat = res.predict(xgrid)
+    print(res)
     
 def generate_data(seed = None):
     rng = np.random.default_rng(seed = seed)
