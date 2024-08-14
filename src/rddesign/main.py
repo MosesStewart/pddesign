@@ -191,7 +191,7 @@ class RDD():
         results.n = n
         return results
 
-    def continuity_test(self, model = "local linear", residualize = False, **kwargs):
+    def continuity_test(self, model = "local linear", residualize = True, **kwargs):
         '''
         Following Lee and Lemieux (2010), estimates the treatment effect using
             exogenous variables as placebo outcomes, and performs a joint Wald
@@ -239,7 +239,7 @@ class RDD():
         res.pvalue, res.model, res.n = pval, model, self.n
         return res
     
-    def bootstrap(self, nreps = 200, seed = 10042002, model = 'local linear', design = 'fuzzy', **kwargs):
+    def bootstrap(self, model = 'local linear', design = 'fuzzy', nreps = 200, seed = 1004, **kwargs):
         rng = np.random.default_rng(seed = seed)
         w0 = self.weights
         weights = rng.exponential(1, size = (self.n, nreps))
@@ -328,7 +328,7 @@ class RDD():
                 X = np.concatenate([X, (self.d - self.cutoff)**pow, isright * (self.d - self.cutoff)**pow], axis = 1)
             coefs = np.linalg.inv(X.T @ W @ X) @ X.T @ W @ Y
             r = Y - X @ coefs
-            loss = self.n * np.log(np.sum(r**2)) + 2 * order
+            loss = self.n * np.log(np.mean(r**2)) + 2 * order
             return loss
         
         order = 1

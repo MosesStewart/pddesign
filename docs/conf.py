@@ -22,9 +22,11 @@ language = 'english'
 pygments_style = 'sphinx'
 
 
-#html_theme = 'default'
-html_theme = 'alabaster'
+html_theme = "sphinx_book_theme"
 
+# citations
+extensions = ['sphinxcontrib.bibtex']
+bibtex_bibfiles = ['refs.bib']
 
 
 

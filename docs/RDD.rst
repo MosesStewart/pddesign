@@ -1,6 +1,6 @@
 rddesign.RDD
 ************
-.. rddesign.RDD:
+.. RDD:
 
 .. currentmodule:: RDD
 
@@ -11,8 +11,7 @@ effect in an observational setting where the treatment is influenced by
 whether an observed running variable exceeds a known cutoff point.
 
 This class implements the nonlinear estimators, cross-validation methods,
-and hypothesis tests introduced in [1] and [2].
-
+and hypothesis tests introduced in :cite:t:`lee2010regression` and :cite:t:`imbens_regression_2008`.
 
 Parameters
 ----------
@@ -34,17 +33,19 @@ weights : (N,) ndarray or (N,) dataframe, optional
 
 Methods
 -------
+
 .. toctree::
    :maxdepth: 1
    :caption: RDD Methods
 
    fit
+   continuity_test
 
 Notes
 -----
 Exogenous variables `X` passed into the ``RDD`` class are not included in the regression
-when estimating the model. Instead, following [1], they are used to residualize the
-outcome variable `Y`, or subtract from `Y` a prediction of `Y` based on the
+when estimating the model. Instead, following :cite:t:`lee2010regression`, they are used to 
+residualize the outcome variable `Y`, or subtract from `Y` a prediction of `Y` based on the
 exogenous covariates ``exog`` (`X`). 
 
 This procedure removes the portion of the variation in `Y`` we could have predicted using
@@ -53,27 +54,15 @@ the exogenous covariates `X`. It also weakens the continuity assumption imposed 
 
 References
 ----------
-.. [1] Lee, D. S. and Lemieux, T. (2010). Regression discontinuity designs 
-       in economics. Journal of economic literature, 48(2):281–355.
-
-.. [2] Imbens, G. W. and Lemieux, T. (2008). Regression discontinuity designs: 
-       A guide to practice. 142(2):615–635.
+.. bibliography:: refs.bib
 
 Examples
 --------
 Generating random data and building the model.
 
->>> c = 0
->>> x = np.random.multivariate_normal(mean = [1, 2],
->>>     cov = [[1, 0.5], [0, 0.5]], 100)
->>> d = np.linspace(-3, 3, 100)
->>> Pa = np.where(d > c, 0.9, 0.1)
->>> a = np.random.binomial(1, Pa)
->>> y = -1.5 * d + 2 * a  + rng.normal(scale = 1, size = n) +\
->>>     (x @ np.array([[-1], [1]])).flatten()
->>> model = RDD(outcome = y, runv = d, cutoff = c, treatment = a, exog = x)
+>>> y, d, x, a = generate_sample_data()
+>>> model = RDD(outcome = y, runv = d, cutoff = c, 
+>>>             treatment = a, exog = x)
 >>> res = model.fit()
 >>> hres = model.continuity_test()
 
-.. index:
-   :refguide: random:distributions

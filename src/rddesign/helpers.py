@@ -127,7 +127,7 @@ class HTestResults():
                   f'No. Observations:'.ljust(20) + str(self.n).rjust(28) + '\n'
         output += f'Joint pvalue:'.ljust(20) + f'{self.pvalue:.3f}'.rjust(28) + ''.center(4) +\
                   f''.ljust(20) + f''.rjust(28) + '\n'
-        output += ''.center(length, '=')
+        output += ''.center(length, '=') + '\n'
         output += 'Dep. Variable'.ljust(20) + 'Treatment ...'.rjust(20) + 'coef'.rjust(12) + 'std err'.rjust(12) + 'waldstat'.rjust(12) +\
                   'order'.rjust(12) + 'bandwidth'.rjust(12) + '\n'
         output += ''.center(length, '-') + '\n'
@@ -141,3 +141,5 @@ class HTestResults():
                     f'{self.waldstat[var]:.3f}'.rjust(12) + f'{self.order[var]:d}'.rjust(12) +\
                     str(None).rjust(12) + '\n'
         output += ''.center(length, '=') + '\n'
+        return output
+    
