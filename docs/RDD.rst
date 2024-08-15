@@ -65,4 +65,3 @@ Generating random data and building the model.
 >>>             treatment = a, exog = x)
 >>> res = model.fit()
 >>> hres = model.continuity_test()
-
