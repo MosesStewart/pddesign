@@ -6,7 +6,7 @@ rddesign.RDD.continuity_test
 
 Performs a joint Wald Test using exogenous covariates to test for discontinuities
 in the distribution of the running variable or the no-treatment potential outcome
-following :cite:t:`lee2010regression`.
+following :footcite:t:`lee2010regression`.
 
 Parameters
 ----------
@@ -70,7 +70,7 @@ keyword arguments.
 
 References
 ----------
-.. bibliography:: refs.bib
+.. footbibliography::
 
 Examples
 --------

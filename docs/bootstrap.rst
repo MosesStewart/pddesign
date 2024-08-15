@@ -34,9 +34,9 @@ replicates : (N,) ndarray
 Notes
 -----
 
-Following :cite:t:`andrews_bootstrap_2024`, for each bootstrap replication :math:`j \in (1, \dots, J)`,
+Following :footcite:t:`andrews_bootstrap_2024`, for each bootstrap replication :math:`j \in (1, \dots, J)`,
 we generate a set of weights :math:`W_{j} \sim Dirichlet(\frac{1}{n}, \dots, \frac{1}{n})`.
-For each set of weights :math:`W_{j}, J \in (1, \dots, J)`, we then estimate the treatment
+For each set of weights :math:`W_{j}, j \in (1, \dots, J)`, we then estimate the treatment
 effect :math:`\theta_{0}^{(j)}` by reweighting the observations. In the case of a fuzzy design, 
 which uses the model,
 
@@ -54,7 +54,7 @@ For each bootstrap replicate :math:`\theta_{0}^{(j)}` we minimize the equations,
 
 References
 ----------
-.. bibliography:: refs.bib
+.. footbibliography::
 
 Examples
 --------

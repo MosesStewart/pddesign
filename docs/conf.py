@@ -38,7 +38,7 @@ extensions = [
 html_theme = 'pydata_sphinx_theme'
 html_theme_options = {
     "logo": {
-        "image_light": "_static/logo.svg",
+        "image_light": "_static/logo_light.svg",
         "image_dark": "_static/logo_dark.svg",
     },
     "github_url": "https://github.com/MosesStewart/pddesign",
@@ -68,7 +68,7 @@ html_file_suffix = '.html'
 htmlhelp_basename = 'rddesign'
 
 
-mathjax_path = "scipy-mathjax/MathJax.js?config=scipy-mathjax"
+mathjax_path = "https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"
 
 plot_html_show_formats = False
 plot_html_show_source_link = False

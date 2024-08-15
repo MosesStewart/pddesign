@@ -22,7 +22,7 @@ bandwidth : float, optional
     Choice of bandwidth to use with ``model = "local linear"``, or 1/2 the width of 
     the window to the left and right of the cutoff to used in local linear regression.
     When left unspecified, bandwidth is chosen using cross-validation procedure from
-    :cite:t:`imbens_regression_2008`.
+    :footcite:t:`imbens_regression_2008`.
 order : int, optional
     Choice of order of polynomial to use with ``model = "polynomial"``. When left
     unspecified, polynomial order is chosen by optimizing using the criterion chosen
@@ -67,7 +67,7 @@ Setting ``model = "local linear"`` estimates the pooled regression:
 For :math:`Y`, the outcome variable, :math:`c`, the cutoff, :math:`D`, 
 the running variable, and :math:`A`, the treatment. Observations used in the 
 regression are restricted to  :math:`c - h < d_{i} < c + h`, where `h` is 
-the choice of bandwidth. :cite:t:`lee2010regression` shows that the treatment 
+the choice of bandwidth. :footcite:t:`lee2010regression` shows that the treatment 
 effect is given by  :math:`\theta_{0}`. When exogenous variables are 
 specified, we residualize :math:`Y` with respect to the exogenous covariates 
 and estimate:
@@ -90,8 +90,8 @@ Setting ``model = "polynomial"`` estimates the pooled regression:
 .. math::
 
     Y = \alpha_{l} + \theta_{0} A + \beta_{\ell1} (D - c) 
-    + (\beta_{r1} − \beta_{\ell1}) A (D − c) + \dots + 
-    \beta_{\ell k} (D - c)^{k} +  (\beta_{rk} − \beta_{\ell k}) A (D − c)^{k}
+    + (\beta_{r1} − \beta_{\ell1}) A (D − c) + \dots \\
+    &+ \beta_{\ell k} (D - c)^{k} +  (\beta_{rk} − \beta_{\ell k}) A (D − c)^{k}
     +  \epsilon
 
 For :math:`Y`, the outcome variable, :math:`c`, the cutoff, and :math:`D`, 
@@ -102,8 +102,8 @@ to the exogenous covariates and estimate:
 .. math::
 
     Y - X\pi = \alpha_{l} + \theta_{0} A + \beta_{\ell1} (D - c) 
-    + (\beta_{r1} − \beta_{\ell1}) A (D − c) + \dots + 
-    \beta_{\ell k} (D - c)^{k} +  (\beta_{rk} − \beta_{\ell k}) A (D − c)^{k}
+    + (\beta_{r1} − \beta_{\ell1}) A (D − c) + \dots \\ 
+    &+ \beta_{\ell k} (D - c)^{k} +  (\beta_{rk} − \beta_{\ell k}) A (D − c)^{k}
     +  \epsilon
 
 For exogenous covariates :math:`X`.
@@ -115,7 +115,7 @@ For exogenous covariates :math:`X`.
 -----
 
 When choice for ``bandwidth`` is left unspecified, we use the cross-validation
-procedure introduced in :cite:t:`imbens_regression_2008` to choose the optimal 
+procedure introduced in :footcite:t:`imbens_regression_2008` to choose the optimal 
 bandwidth. Specifically, for observations less than the cutoff (:math:`d_{i} < c`),
 we predict the value of the outcome :math:`\hat{Y}(d_{i})` using only observations
 within the bandwidth range and to the left of the point (:math:`d_{i} - h < d < d_{i}`).
@@ -135,7 +135,7 @@ predictions:
 -----
 
 When choice for ``order`` is left unspecified, we use one of two optimization
-procedures introduced in :cite:t:`lee2010regression` to choose the order of the polynomial.
+procedures introduced in :footcite:t:`lee2010regression` to choose the order of the polynomial.
 If ``optimization = 'aic'`` (default), then we minimize the Akaike Information Criterion
 objective function,
 
@@ -145,14 +145,14 @@ objective function,
 
 For :math:`p`, the order of the polynomial and :math:`\hat{\sigma}^{2}`, the estimated mean
 squared error of the regression. When ``optimization = 'significance bins'``, we follow
-the procedure outlined in :cite:t:`lee2010regression`. Specifically, we add a set of 
+the procedure outlined in :footcite:t:`lee2010regression`. Specifically, we add a set of 
 bin dummies :math:`\phi_{j}` to the polynomial regression to estimate the model:
 
 .. math::
 
-    Y - X\pi = \alpha_{l} + \theta_{0} A + \beta_{\ell1} (D - c) 
-    + (\beta_{r1} − \beta_{\ell1}) A (D − c) + \dots + 
-    \beta_{\ell k} (D - c)^{k} +  (\beta_{rk} − \beta_{\ell k}) A (D − c)^{k}
+    Y - X\pi &= \alpha_{l} + \theta_{0} A + \beta_{\ell1} (D - c) 
+    + (\beta_{r1} − \beta_{\ell1}) A (D − c) + \dots \\ 
+    &+ \beta_{\ell k} (D - c)^{k} +  (\beta_{rk} − \beta_{\ell k}) A (D − c)^{k}
     +  \sum_{j = 2}^{J - 1}\phi_{j} B_{j} +  \epsilon
 
 And use a Wald Test to under the null hypothesis that :math:`\phi_{2}, \dots, \phi_{J - 1} = 0`.
@@ -175,7 +175,7 @@ When specifying a fuzzy design, we estimate the 2SLS model,
 For :math:`Y`, the outcome variable, :math:`c`, the cutoff, :math:`D`, the running
 variable, and :math:`A`, the treatment. :math:`f(\cdot)` represents the method
 selected for the regression, which is polynomial for ``model = "polynomial"`` and
-local linear when ``model = "local linear"``. :cite:t:`imbens_regression_2008`
+local linear when ``model = "local linear"``. :footcite:t:`imbens_regression_2008`
 shows that for 
 
 .. math::
@@ -190,7 +190,7 @@ regressions with the same function :math:`f(\cdot)`.
 
 References
 ----------
-.. bibliography:: refs.bib
+.. footbibliography::
 
 Examples
 --------

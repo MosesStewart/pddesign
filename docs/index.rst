@@ -1,8 +1,8 @@
 .. _rddesign_mainpage:
 
-###################
+######################
 RDDesign documentation
-###################
+######################
 
 .. toctree::
    :maxdepth: 1

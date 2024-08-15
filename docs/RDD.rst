@@ -11,7 +11,7 @@ effect in an observational setting where the treatment is influenced by
 whether an observed running variable exceeds a known cutoff point.
 
 This class implements the nonlinear estimators, cross-validation methods,
-and hypothesis tests introduced in :cite:t:`lee2010regression` and :cite:t:`imbens_regression_2008`.
+and hypothesis tests introduced in :footcite:t:`lee2010regression` and :footcite:t:`imbens_regression_2008`.
 
 Parameters
 ----------
@@ -40,11 +40,12 @@ Methods
 
    fit
    continuity_test
+   bootstrap
 
 Notes
 -----
 Exogenous variables `X` passed into the ``RDD`` class are not included in the regression
-when estimating the model. Instead, following :cite:t:`lee2010regression`, they are used to 
+when estimating the model. Instead, following :footcite:t:`lee2010regression`, they are used to 
 residualize the outcome variable `Y`, or subtract from `Y` a prediction of `Y` based on the
 exogenous covariates ``exog`` (`X`). 
 
@@ -54,7 +55,7 @@ the exogenous covariates `X`. It also weakens the continuity assumption imposed 
 
 References
 ----------
-.. bibliography:: refs.bib
+.. footbibliography::
 
 Examples
 --------
