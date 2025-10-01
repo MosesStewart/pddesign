@@ -96,34 +96,9 @@ class pdd:
             + self.h * (self.𝜔['-'][i, 0] * self.R_1[j, :] * ((self.D[i, 0] - self.cutoff)/self.h)**2 - E𝜔RD) @ self.e_2.T \
             + self.b * self.Λ_1['-'] @ self.e_2.T @ self.Γ_2_inv['-'] @ (self.Γ_2['-'] - self.𝛿['-'][j, 0] * self.R_2[j, :].T @ self.R_2[j, :]))\
             @ self.Γ_2_inv['-'] @ self.R_2[i, :].T * self.𝛿['-'][i, 0] for i, j in permutations(range(self.n), 2)]}
-        
+
     def _build_matrices(self):
         pass
     
     def _fit_us(self):
         pass
-'''
-    def _build_matrices(self):
-    
-    def _fit_us(self):
-        pass
-    
-    def _build_edgeworth_terms(self):
-        self.ℓ_0_us_p = [self.h * self.𝜔_p[i, 0] * self.Γ_p_1_inv @ self.R_1[i, :].T for i in range(self.n)] # R^{2 x 1} x n
-        self.ℓ_0_bc_p = [self.ℓ_0_us_p[i] - \
-            self.b * (self.h/self.b)**2 * self.𝛿_p[i, 0] * self.Γ_p_1_inv @ self.Λ_p_1 @ self.e_2.T @ self.Γ_p_2_inv @ self.R_2[i, :].T for i in range(self.n)] # R^{2 x 1} x n
-        self.ℓ_1_us_p = [self.h**2 * self.𝜔_p[i, 0] * \
-            self.Γ_p_1_inv @ (self.Γ_p_1 - self.𝜔_p[j, 0] * self.R_1[j, :].T @ self.R_1[j, :]) @ self.Γ_p_1_inv @ self.R_1[i, :].T \
-            for i, j in permutations(range(self.n), 2)]   # R^{2 x 1} x n(n - 1)
-        # Extra term needed for ℓ_1_bc_p
-        E𝜔RD = np.mean([self.𝜔_p[i, 0] * self.R_1[j, :] * ((self.D[i, 0] - self.cutoff)/self.h)**2 for i, j in permutations(range(self.n), 2)], axis = 0)
-        self.ℓ_1_bc_p = [self.ℓ_1_us_p[i][j] - self.b * (self.h/self.b)**2 * \
-            self.Γ_p_1_inv @ ( self.h * (self.Γ_p_1 - self.𝜔_p[j, 0] * self.R_1[j, :].T @ self.R_1[j, :]) @ self.Γ_p_1_inv @ self.Λ_p_1 @ self.e_2.T \
-            + self.h * (self.𝜔_p[i, 0] * self.R_1[j, :] * ((self.D[i, 0] - self.cutoff)/self.h)**2 - E𝜔RD) @ self.e_2.T \
-            + self.b * self.Λ_p_1 @ self.e_2.T @ self.Γ_p_2_inv @ (self.Γ_p_2 - self.𝛿_p[j, 0] * self.R_2[j, :].T @ self.R_2[j, :]))\
-            @ self.Γ_p_2_inv @ self.R_2[i, :].T * self.𝛿_p[i, 0] for i, j in permutations(range(self.n), 2)]
-        
-    def _build_polynomial_terms(self):
-        pass
-        
-'''
