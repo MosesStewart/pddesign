@@ -51,14 +51,13 @@ class pdd:
     def _build_matrices(self):
         self.R_1 = np.concatenate([np.ones((self.n, 1)), (self.D - self.cutoff)/self.h], axis=1).astype(self.dtype)     # R^{n x 2}
         self.R_2 = np.concatenate([np.ones((self.n, 1)), (self.D - self.cutoff)/self.b, ((self.D - self.cutoff)/self.b)**2], axis=1).astype(self.dtype) # R^{n x 2}
-        
         self.𝜔 = {'+': ((1/self.h) * np.where(self.D >= self.cutoff, 1, 0) * self.kernel((self.D - self.cutoff)/self.h)).astype(self.dtype),
                   '-': ((1/self.h) * np.where(self.D < self.cutoff, 1, 0) * self.kernel((self.D - self.cutoff)/self.h)).astype(self.dtype) } # R^{n x 1}
         self.𝛿 = {'+': ((1/self.b) * np.where(self.D >= self.cutoff, 1, 0) * self.kernel((self.D - self.cutoff)/self.b)).astype(self.dtype),
                   '-': ((1/self.b) * np.where(self.D < self.cutoff, 1, 0) * self.kernel((self.D - self.cutoff)/self.b)).astype(self.dtype)}  # R^{n x 1}
         self.K = {'+': np.diag(self.𝜔['+'].flatten()), '-': np.diag(self.𝜔['-'].flatten())}   # R^{n x n}
         self.L = {'+': np.diag(self.𝛿['+'].flatten()), '-': np.diag(self.𝛿['-'].flatten())}   # R^{n x n}
-        self.Q_m = self.Z.T @ self.K['-'] @ (np.eye(self.n).astype(self.dtype) - self.R_1 @ np.linalg.pinv(self.R_1.T @ self.K['-'] @ self.R_1) @ self.R_1 @ self.K['-'] @ self.W)   # R^{q x q}
+        self.Q = self.Z.T @ self.K['-'] @ (np.eye(self.n).astype(self.dtype) - self.R_1 @ np.linalg.pinv(self.R_1.T @ self.K['-'] @ self.R_1) @ self.R_1 @ self.K['-'] @ self.W)   # R^{q x q}
         self.Γ_1 = {'+': (1/self.n) * self.R_1.T @ self.K['+'] @ self.R_1, '-': (1/self.n) * self.R_1.T @ self.K['-'] @ self.R_1}   # R^{2 x 2}
         self.Γ_2 = {'+': (1/self.n) * self.R_2.T @ self.L['+'] @ self.R_2, '-': (1/self.n) * self.R_2.T @ self.L['-'] @ self.R_2}   # R^{3 x 3}
         self.Γ_1_inv = {'+': np.linalg.pinv((1/self.n) * self.R_1.T @ self.K['+'] @ self.R_1), '-': np.linalg.pinv((1/self.n) * self.R_1.T @ self.K['-'] @ self.R_1)}   # R^{2 x 2}
@@ -96,9 +95,14 @@ class pdd:
             + self.h * (self.𝜔['-'][i, 0] * self.R_1[j, :] * ((self.D[i, 0] - self.cutoff)/self.h)**2 - E𝜔RD) @ self.e_2.T \
             + self.b * self.Λ_1['-'] @ self.e_2.T @ self.Γ_2_inv['-'] @ (self.Γ_2['-'] - self.𝛿['-'][j, 0] * self.R_2[j, :].T @ self.R_2[j, :]))\
             @ self.Γ_2_inv['-'] @ self.R_2[i, :].T * self.𝛿['-'][i, 0] for i, j in permutations(range(self.n), 2)]}
-
-    def _build_matrices(self):
-        pass
     
-    def _fit_us(self):
-        pass
+    def __fit_us(self):
+        Q_us = self.Z.T @ self.L['-'] @ (np.eye(self.n).astype(self.dtype) - self.R_2 @ np.linalg.pinv(self.R_2.T @ self.L['-'] @ self.R_2) @ self.R_2 @ self.L['-'] @ self.W)
+        self.𝛾 = (np.linalg.pinv(Q_us) @ self.Z.T @  self.L['-'] @ (np.eye(self.n) - self.R_2 @ np.linalg.pinv(self.R_2.T @ self.L['-'] @ self.R_2) @ self.R_2.T @ self.L['-']) @ self.Y).flatten()
+        self.s = np.concatenate([np.array([[0, 0, 1]]), np.array([[0, 0, 𝛾] for 𝛾 in self.𝛾])], axis = 0).flatten().reshape(-1, 1)
+        self.ε_us = {'+': self.vecS - np.kron(np.eye(self.q + 1), self.R_2 @ self.Γ_2_inv['+'] @ self.R_2.T @ self.L['+'] * (1/self.n)) @ self.vecS,
+                     '-': self.vecS - np.kron(np.eye(self.q + 1), self.R_2 @ self.Γ_2_inv['-'] @ self.R_2.T @ self.L['-'] * (1/self.n)) @ self.vecS}
+        self.Σ = {'+': np.diag((self.ε_us['+']**2).flatten()), '-': np.diag((self.ε_us['+']**2).flatten())}
+        self.v_us = (self.b/self.n) * self.s.T @ np.kron(np.eye(self.q + 1), self.Γ_2_inv['+'] @ self.R_2.T @ self.L['+']) @ self.Σ['+'] @ np.kron(np.eye(self.q + 1), self.Γ_2_inv['+'] @ self.R_2.T @ self.L['+']).T @ self.s \
+            + (self.b/self.n) * self.s.T @ np.kron(np.eye(self.q + 1), self.Γ_2_inv['-'] @ self.R_2.T @ self.L['-']) @ self.Σ['-'] @ np.kron(np.eye(self.q + 1), self.Γ_2_inv['-'] @ self.R_2.T @ self.L['-']).T @ self.s
+        
