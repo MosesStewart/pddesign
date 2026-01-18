@@ -1,23 +1,18 @@
-import numpy as np, pandas as pd
-from main import RDD
+import numpy as np, pandas as pd, torch
+from matplotlib import pyplot as plt
+from main import *
+from simulation import *
 
 def main():
-    y, d, x, a = generate_sample_data(seed = 1004)
-    xgrid = np.linspace(-2, 2, 20)
-    model = RDD(y, d, treatment = a, exog = x, cutoff = 0)
-    res = model.fit(model = "polynomial", design = "fuzzy", optimization = 'aic', bootstrap = True,
-              nreps = 1000, seed = 2002)
+    Y, W, D, Z, U = linear_sim(ndraws = 2000, seed = 1001)
+    model = pdd(Y, W, D, Z, cutoff = 0.0, device = 'cuda', kernel = 'triangle')
+    res = model.fit()
     print(res)
-    
-def generate_sample_data(seed = None):
-    rng = np.random.default_rng(seed = seed)
-    n = 400
-    d = np.linspace(-10, 10, n)[:, None]
-    Pa = np.where(d.flatten() > 0, 0.9, 0.1)[:, None]
-    a = rng.binomial(1, Pa)
-    x = rng.multivariate_normal(mean = [1, 4], cov = np.array([[0.5, 0.25], [0.25, 0.5]]), size = n)
-    y = -1.5 * d + 0.05 * d**2 + 2 * a + x @ np.array([[-1], [1]]) + rng.normal(scale = 1, size = n)[:, None]
-    return y, d, x, a
-    
+    ds = np.linspace(-1, -0.01, 10)
+    print(res.predict(ds))
+    ds = np.linspace(0, 1, 10)
+    print(res.predict(ds))
+
 if __name__ == '__main__':
     main()
+    

@@ -11,9 +11,9 @@ class PDDResults():
         self.predict = predict
         self.status = status
         if est > 0:
-            self.pvalue = 1 - t.ppf(est/se)
+            self.pvalue = 1 - t.cdf(est/se, self.n - 4)
         if est <= 0:
-            self.pvalue = t.ppf(est/se)
+            self.pvalue = t.cdf(est/se, self.n - 4)
     
     def summary(self):
         output = self.__str__()
@@ -29,9 +29,11 @@ class PDDResults():
         output += ''.center(length, '=') + '\n'
         output += f'Var. type:'.ljust(20) + vartype.rjust(28) + ''.center(4) +\
                     f'No. Observations:'.ljust(20) + str(self.n).rjust(28) + '\n'
+        output += f'Pos. Bandwidth:'.ljust(20) + f'{self.bandwidth['+']:.3f}'.rjust(28) + ''.center(4) +\
+                    f'Neg. Bandwidth:'.ljust(20) + f'{self.bandwidth['-']:.3f}'.rjust(28) + '\n'
         output += ''.center(length, '=') + '\n'
         output += ''.center(40) + 'coef'.rjust(10) + 'std err'.rjust(10) + 't'.rjust(10) +\
-              'P>|t|'.rjust(10) + '[0.025'.rjust(10) + '0.975]'.rjust(10) + '\n'
+              'p_1s'.rjust(10) + '[0.025'.rjust(10) + '0.975]'.rjust(10) + '\n'
         output += ''.center(length, '-') + '\n'
         output += 'Treatment'.ljust(40) + f'{self.est:.3f}'.rjust(10) + f'{self.se:.3f}'.rjust(10) +\
               f'{self.est/self.se:.3f}'.rjust(10) + f'{self.pvalue:.3f}'.rjust(10) +\
