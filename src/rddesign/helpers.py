@@ -10,6 +10,8 @@ class PDDResults():
         self.n = n
         self.predict = predict
         self.status = status
+        self.left_ci = t.ppf(0.025, self.n - 4) * self.se + self.est
+        self.right_ci = t.ppf(0.975, self.n - 4) * self.se + self.est
         if est > 0:
             self.pvalue = 1 - t.cdf(est/se, self.n - 4)
         if est <= 0:
@@ -20,8 +22,6 @@ class PDDResults():
         print(output)
         
     def __str__(self):
-        left_ci = t.ppf(0.025, self.n - 4) * self.se + self.est
-        right_ci = t.ppf(0.975, self.n - 4) * self.se + self.est
         vartype = 'Robust Bias Corr.'
         
         length = 100
@@ -37,6 +37,6 @@ class PDDResults():
         output += ''.center(length, '-') + '\n'
         output += 'Treatment'.ljust(40) + f'{self.est:.3f}'.rjust(10) + f'{self.se:.3f}'.rjust(10) +\
               f'{self.est/self.se:.3f}'.rjust(10) + f'{self.pvalue:.3f}'.rjust(10) +\
-              f'{left_ci:.3f}'.rjust(10) + f'{right_ci:.3f}'.rjust(10) + '\n'
+              f'{self.left_ci:.3f}'.rjust(10) + f'{self.right_ci:.3f}'.rjust(10) + '\n'
         output += ''.center(length, '=') + '\n'
         return output

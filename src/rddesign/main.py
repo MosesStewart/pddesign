@@ -38,8 +38,8 @@ class pdd:
         elif kernel == 'rectangle': self.kernel = rectangle_kernel
         else: self.kernel = gaussian_kernel
         self.S = torch.cat([self.Y, self.W], dim=1)
-        self.vecS = self.S.flatten().reshape(-1, 1)
-        self.vecW = self.W.flatten().reshape(-1, 1)
+        self.vecS = self.S.T.contiguous().reshape(-1, 1)
+        self.vecW = self.W.T.contiguous().reshape(-1, 1)
         self.q = int(self.S.shape[1]) - 1
         self.s_hat_vec = None
         self.h = {'+': torch.std(self.D) * self.n**(-1/5), '-': torch.std(self.D) * self.n**(-1/5)}
@@ -246,6 +246,8 @@ class pdd:
         def obj(h):
             self.h['+'] = h[0]
             self.h['-'] = h[1]
+            if torch.min(h) <= 0 or torch.max(h) > 10 * torch.max(torch.abs(self.D - self.cutoff)):
+                return torch.inf * torch.abs(h.sum())
             self.b = self.h
             self.__build_matrices()
             self.__build_edgeworth_terms()
@@ -264,11 +266,11 @@ class pdd:
         if not res.success:
             def constraint(x):
                 if torch.min(x) <= 0:
-                    return torch.tensor(torch.inf)
+                    return torch.tensor([-1])
                 else:
                     return x.sum()
-            res = minimize_constr(obj, h0, max_iter = 50, tol = tol, constr = {'lb' : min(10e-6, 1/torch.std(self.D).item()**2, torch.std(self.D).item()**2), 
-                                                                               'ub': max(10e6, torch.std(self.D).item()**2, 1/torch.std(self.D).item()**2), 
+            res = minimize_constr(obj, h0, max_iter = 50, tol = tol, constr = {'lb' : 0, 
+                                                                               'ub': 10 * torch.max(torch.abs(self.D - self.cutoff)), 
                                                                                'fun': constraint})
         self.h = {'+': res.x[0], '-': res.x[1]}
         self.b = self.h
@@ -277,7 +279,6 @@ class pdd:
     
     def fit(self):
         bres = self.__get_bandwidth()
-        print(bres)
         P_bc = self.P_bc['+'] - self.P_bc['-']
         est = (1/self.n) * self.s.T @ torch.kron(self.I_q1, P_bc) @ self.vecS
         se = torch.sqrt(( 1 / self.n**2) * (self.s.T @ torch.kron(self.I_q1, self.P_bc['+']) @ self.Σ['+'] @ torch.kron(self.I_q1, self.P_bc['+']).T @ self.s) +\
@@ -289,11 +290,12 @@ class pdd:
             d = torch.as_tensor(d, dtype=self.dtype, device=self.device)
             if d.ndim == 1: d = d.reshape(-1, 1)
             Ih, dm, one_m = {'+': 1 / self.h['+'], '-': 1 / self.h['-']}, d - self.cutoff, torch.ones((d.shape[0], 1), dtype=self.dtype, device=self.device)
-            ind = {'+': (d >= self.cutoff), '-': (d < self.cutoff)}
+            ind = {'+': dm >= 0, '-': dm < 0}
+            sw = self.s[2:, :]
             r = {'+': torch.cat([one_m, Ih['+'] * dm], dim=1),
                  '-': torch.cat([one_m, Ih['-'] * dm], dim=1)}
-            Yhat = {'+': (1/self.n) * r['+'] @ self.P_bc['+'] @ self.Y,
-                    '-': (1/self.n) * r['-'] @ self.P_bc['-'] @ self.Y}
+            Yhat = {'+': (1/self.n) * r['+'] @ self.P_bc['+'] @ self.Y, 
+                    '-': (1/self.n) * r['-'] @ self.P_bc['-'] @ self.Y - (1/self.n) * sw.T @ torch.kron(torch.eye(self.q, dtype=self.dtype, device=self.device), P_bc) @ self.vecW}
             pred = ind['+'] * Yhat['+'] + ind['-'] * Yhat['-']
             return pred.flatten().detach().cpu().numpy()
             
