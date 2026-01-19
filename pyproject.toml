@@ -31,7 +31,8 @@ dependencies = [
   "matplotlib",
   "scipy",
   "numpy",
-  "pandas"
+  "pandas",
+  "torch",
 ]
 
 [project.optional-dependencies] 

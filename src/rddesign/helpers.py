@@ -1,8 +1,9 @@
 import pandas as pd, numpy as np
 from scipy.stats import t, chi2, norm
         
-class PDDResults():
-    def __init__(self, est, se, resid, bandwidth, n, predict, status):
+class Results():
+    def __init__(self, model, est, se, resid, bandwidth, n, predict, status):
+        self.model = model
         self.est = est
         self.se = se
         self.resid = resid
@@ -25,7 +26,7 @@ class PDDResults():
         vartype = 'Robust Bias Corr.'
         
         length = 100
-        output = '\n' + ('Placebo Discontinuity Design').center(length) + '\n'
+        output = '\n' + (self.model).center(length) + '\n'
         output += ''.center(length, '=') + '\n'
         output += f'Var. type:'.ljust(20) + vartype.rjust(28) + ''.center(4) +\
                     f'No. Observations:'.ljust(20) + str(self.n).rjust(28) + '\n'
