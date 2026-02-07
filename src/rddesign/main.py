@@ -1,6 +1,7 @@
-import numpy as np, pandas as pd, warnings, torch
+import numpy as np, pandas as pd, warnings, torch, sys, os, re
 from scipy.stats import norm
-from helpers import *
+sys.path.append('/'.join(re.split('/|\\\\', os.path.dirname( __file__ ))[0:-1]))
+from rddesign.helpers import *
 from itertools import permutations
 from torchmin import minimize, minimize_constr
 from math import factorial, log
@@ -79,7 +80,7 @@ class pdd:
         self.L = {'+': torch.diag(self.𝛿['+'].flatten()), '-': torch.diag(self.𝛿['-'].flatten())}
         
         self.I_n = torch.eye(self.n, dtype=self.dtype, device=self.device)
-        self.Q = self.Z.T @ self.K['-'] @ (self.I_n - self.R_1['-'] @ torch.linalg.pinv(self.R_1['-'].T @ self.K['-'] @ self.R_1['-']) @ self.R_1['-'].T) @ self.K['-'] @ self.W
+        self.Q = self.Z.T @ self.K['-'] @ (self.I_n - self.R_1['-'] @ torch.linalg.pinv(self.R_1['-'].T @ self.K['-'] @ self.R_1['-']) @ self.R_1['-'].T @ self.K['-'])  @ self.W
         self.Γ_1 = {'+': (1 / self.n) * (self.R_1['+'].T @ self.K['+'] @ self.R_1['+']), '-': (1 / self.n) * (self.R_1['-'].T @ self.K['-'] @ self.R_1['-'])}
         self.Γ_2 = {'+': (1 / self.n) * (self.R_2['+'].T @ self.L['+'] @ self.R_2['+']), '-': (1 / self.n) * (self.R_2['-'].T @ self.L['-'] @ self.R_2['-'])}
         self.Γ_1_inv = {'+': torch.linalg.pinv(self.Γ_1['+']), '-': torch.linalg.pinv(self.Γ_1['-'])}
@@ -292,6 +293,7 @@ class pdd:
         resid_pos = self.Y - torch.hstack([self.R_1['+'], self.W]) @ torch.linalg.inv(torch.vstack([self.R_1['+'].T, self.Z.T]) @ self.K['+'] @ torch.hstack([self.R_1['+'], self.W])) @ (torch.vstack([self.R_1['+'].T, self.Z.T]) @ self.K['+'] @ self.Y)
         resid_neg = self.Y - torch.hstack([self.R_1['-'], self.W]) @ torch.linalg.inv(torch.vstack([self.R_1['-'].T, self.Z.T]) @ self.K['-'] @ torch.hstack([self.R_1['-'], self.W])) @ (torch.vstack([self.R_1['-'].T, self.Z.T]) @ self.K['-'] @ self.Y)
         resids = (self.ind['+'] * resid_pos + self.ind['-'] * resid_neg).flatten().detach().cpu().numpy()
+        
         def predict(d) -> np.ndarray:
             d = torch.as_tensor(d, dtype=self.dtype, device=self.device)
             if d.ndim == 1: d = d.reshape(-1, 1)

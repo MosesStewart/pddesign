@@ -1,7 +1,7 @@
 import numpy as np, pandas as pd, torch
 from matplotlib import pyplot as plt
 from main import *
-from simulation import *
+from derived.simulation import *
 
 SMALL_SIZE = 14
 MEDIUM_SIZE = 16
@@ -18,8 +18,12 @@ plt.rcParams["font.family"] = "Times New Roman"
 
 def main():
     outdir = 'temp'
-    Y, W, D, Z, U = linear_sim(ndraws = 2000, seed = 14)
-    dgp = lambda x: (x >= 0) * 1.5 + (x < 0) * 0.5 + x/2
+    Y, W, D, Z, U = sim_bias(model_1, ndraws = 2000, seed = 3)
+    fig, ax = dot_plot(D, U)
+    ax.set_xlabel('D')
+    ax.set_ylabel('U')
+    fig.savefig(f'{outdir}/UD_scatter.png', bbox_inches='tight')
+    
     model = rdd(Y, D, cutoff = 0.0, device = 'cuda', kernel = 'triangle', bandwidth = [0.50, 0.50])
     res_rdd = model.fit()
     print(res_rdd)
@@ -28,7 +32,13 @@ def main():
     res_pdd = model.fit()
     print(res_pdd)
     
-    fig, ax = plot_res(res_rdd, res_pdd, Y, D, dgp)    
+    model = rdd(W, D, cutoff = 0.0, device = 'cuda', kernel = 'triangle', bandwidth = [0.50, 0.50])
+    res_w = model.fit()
+    fig, ax = plot_rdd(res_w, W, D)
+    ax.set_ylabel('$\\mathbb{E}[W \\mid D = d]$')
+    fig.savefig(f'{outdir}/W_rdd.png', bbox_inches = "tight")
+    
+    fig, ax = plot_res(res_rdd, res_pdd, Y, D, model_1)    
     fig.savefig(f'{outdir}/linear_dgp.png', bbox_inches="tight")
     
     '''
@@ -47,33 +57,6 @@ def main():
     print(np.mean(successes))
     print(margins)
     '''
-
-def plot_res(rres, pres, Y, D, fn):
-    x1 = np.linspace(-1.5, -0.001, 200)
-    x2 = np.linspace(0, 1.5, 200)
-    fig, ax = plt.subplots()
-    ax.scatter(D, Y, s = 5, c = '#dddddd')
-    ax.plot(x1, fn(x1), color = '#80EF80', label = 'True', linewidth = 2)
-    ax.plot(x1, rres.predict(x1), color = '#B3EBF2', label = 'RDD', linewidth = 2)
-    ax.plot(x1, rres.predict(x1) + rres.left_ci - rres.est, color = '#B3EBF2', linewidth = 1, alpha = 0.2)
-    ax.plot(x1, rres.predict(x1) + rres.right_ci - rres.est, color = '#B3EBF2', linewidth = 1, alpha = 0.2)
-    ax.plot(x1, pres.predict(x1), color = '#FF6961', label = 'PDD', linewidth = 2)
-    ax.plot(x1, pres.predict(x1) + pres.left_ci - pres.est, color = '#FF6961', linewidth = 1, alpha = 0.2)
-    ax.plot(x1, pres.predict(x1) + pres.right_ci - pres.est, color = '#FF6961', linewidth = 1, alpha = 0.2)
-    ax.plot(x2, fn(x2), color = '#80EF80', label = 'True', linewidth = 2)
-    ax.plot(x2, rres.predict(x2), color = '#B3EBF2', linewidth = 2)
-    ax.plot(x2, rres.predict(x2) + rres.left_ci - rres.est, color = '#B3EBF2', linewidth = 1, alpha = 0.2)
-    ax.plot(x2, rres.predict(x2) + rres.right_ci - rres.est, color = '#B3EBF2', linewidth = 1, alpha = 0.2)
-    ax.plot(x2, pres.predict(x2), color = '#FF6961', linewidth = 2)
-    ax.plot(x2, pres.predict(x2) + pres.left_ci - pres.est, color = '#FF6961', linewidth = 1, alpha = 0.2)
-    ax.plot(x2, pres.predict(x2) + pres.right_ci - pres.est, color = '#FF6961', linewidth = 1, alpha = 0.2)
-    ax.legend(loc = 'upper left')
-    ax.set_xlabel('D')
-    ax.set_ylabel('$\\mathbb{E}[Y \\mid D = d]$')
-    ax.set_xlim(-0.5, 0.5)
-    ax.set_ylim(-1.5, 2.5)
-    ax.spines[['right', 'top']].set_visible(False)
-    return fig, ax
 
 if __name__ == '__main__':
     main()
