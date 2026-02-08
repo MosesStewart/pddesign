@@ -39,7 +39,10 @@ class pdd:
         if kernel == 'triangle': self.kernel = triangular_kernel
         elif kernel == 'rectangle': self.kernel = rectangle_kernel
         else: self.kernel = gaussian_kernel
-        self.custom_bandwidth = torch.as_tensor(bandwidth, dtype=dtype, device=device).flatten()
+        if type(bandwidth) != type(None):
+            self.custom_bandwidth = torch.as_tensor(bandwidth, dtype=dtype, device=device).flatten()
+        else:
+            self.custom_bandwidth = None
         self.S = torch.cat([self.Y, self.W], dim=1)
         self.vecS = self.S.T.contiguous().reshape(-1, 1)
         self.vecW = self.W.T.contiguous().reshape(-1, 1)
@@ -246,10 +249,10 @@ class pdd:
     
     def __get_bandwidth(self, optim_mode = 'newton-cg', tol = 0.001):
         def obj(h):
-            self.h['+'] = h[0]
-            self.h['-'] = h[1]
+            self.h['-'] = h[0]
+            self.h['+'] = h[1]
             if torch.min(h) <= 0 or torch.max(h) > 10 * torch.max(torch.abs(self.D - self.cutoff)):
-                return torch.inf * torch.abs(h.sum())
+                return torch.inf
             self.b = self.h
             self.__build_matrices()
             self.__build_edgeworth_terms()
@@ -263,26 +266,17 @@ class pdd:
             loss = (( (1/H['+']) * q_1['+'] + H['+']**9 * 𝜂_bc['+']**2 * q_2 + H['+']**3 * 𝜂_bc['+'] * q_3['+'] )/self.n)**2 + (( (1/H['-']) * q_1['-'] + H['-']**9 * 𝜂_bc['-']**2 * q_2 + H['-']**3 * 𝜂_bc['-'] * q_3['-'] )/self.n)**2
             return loss
         
-        h0 = torch.tensor([self.h['+'], self.h['-']])
+        h0 = torch.tensor([self.h['-'], self.h['+']])
         res = minimize(obj, h0, max_iter = 50, method = optim_mode, tol = tol)
-        if not res.success:
-            def constraint(x):
-                if torch.min(x) <= 0:
-                    return torch.tensor([-1])
-                else:
-                    return x.sum()
-            res = minimize_constr(obj, h0, max_iter = 50, tol = tol, constr = {'lb' : 0, 
-                                                                               'ub': 10 * torch.max(torch.abs(self.D - self.cutoff)), 
-                                                                               'fun': constraint})
         return res
     
     def fit(self):
         if type(self.custom_bandwidth) != type(None):
-            self.h = {'+': self.custom_bandwidth[0], '-': self.custom_bandwidth[1]}
+            self.h = {'-': self.custom_bandwidth[0], '+': self.custom_bandwidth[1]}
             status = True
         else:
             bres = self.__get_bandwidth()
-            self.h = {'+': bres.x[0], '-': bres.x[1]}
+            self.h = {'-': bres.x[0], '+': bres.x[1]}
             status = bres.success
         self.b = self.h
         self.__build_matrices()
@@ -331,8 +325,11 @@ class rdd:
         if kernel == 'triangle': self.kernel = triangular_kernel
         elif kernel == 'rectangle': self.kernel = rectangle_kernel
         else: self.kernel = gaussian_kernel
-        self.custom_bandwidth = torch.as_tensor(bandwidth, dtype=dtype, device=device)
-        self.h = {'+': torch.std(self.D) * self.n**(-1/5), '-': torch.std(self.D) * self.n**(-1/5)}
+        if type(bandwidth) != type(None):
+            self.custom_bandwidth = torch.as_tensor(bandwidth, dtype=dtype, device=device).flatten()
+        else:
+            self.custom_bandwidth = None
+        self.h = {'-': 10 * torch.std(self.D) * self.n**(-1/5), '+': 10 * torch.std(self.D) * self.n**(-1/5)}
         self.b = self.h
         self.gen = torch.Generator(device = device).manual_seed(seed)
         self.M = 2 * self.n * int(log(self.n))
@@ -522,10 +519,10 @@ class rdd:
     
     def __get_bandwidth(self, optim_mode = 'newton-cg', tol = 0.001):
         def obj(h):
-            self.h['+'] = h[0]
-            self.h['-'] = h[1]
+            self.h['-'] = h[0]
+            self.h['+'] = h[1]
             if torch.min(h) <= 0 or torch.max(h) > 10 * torch.max(torch.abs(self.D - self.cutoff)):
-                return torch.inf * torch.abs(h.sum())
+                return torch.inf
             self.b = self.h
             self.__build_matrices()
             self.__build_edgeworth_terms()
@@ -539,26 +536,17 @@ class rdd:
             loss = (( (1/H['+']) * q_1['+'] + H['+']**9 * 𝜂_bc['+']**2 * q_2 + H['+']**3 * 𝜂_bc['+'] * q_3['+'] )/self.n)**2 + (( (1/H['-']) * q_1['-'] + H['-']**9 * 𝜂_bc['-']**2 * q_2 + H['-']**3 * 𝜂_bc['-'] * q_3['-'] )/self.n)**2
             return loss
         
-        h0 = torch.tensor([self.h['+'], self.h['-']])
+        h0 = torch.tensor([self.h['-'], self.h['+']])
         res = minimize(obj, h0, max_iter = 50, method = optim_mode, tol = tol)
-        if not res.success:
-            def constraint(x):
-                if torch.min(x) <= 0:
-                    return torch.tensor([-1])
-                else:
-                    return x.sum()
-            res = minimize_constr(obj, h0, max_iter = 50, tol = tol, constr = {'lb' : 0, 
-                                                                               'ub': 10 * torch.max(torch.abs(self.D - self.cutoff)), 
-                                                                               'fun': constraint})
         return res
     
     def fit(self):
         if type(self.custom_bandwidth) != type(None):
-            self.h = {'+': self.custom_bandwidth[0], '-': self.custom_bandwidth[1]}
+            self.h = {'-': self.custom_bandwidth[0], '+': self.custom_bandwidth[1]}
             status = True
         else:
             bres = self.__get_bandwidth()
-            self.h = {'+': bres.x[0], '-': bres.x[1]}
+            self.h = {'-': bres.x[0], '+': bres.x[1]}
             status = bres.success
         self.b = self.h
         self.__build_matrices()

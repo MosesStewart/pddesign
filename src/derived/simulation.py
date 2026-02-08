@@ -23,7 +23,7 @@ def sim_unbiased(μx, ndraws = 4000, seed = 10042002):
     gen = torch.Generator().manual_seed(seed)
     U = torch.bernoulli(0.45 * torch.ones((ndraws, 1)), generator = gen)
     
-    D =  (U == 1) * (torch.log(torch.rand((ndraws, 1), generator = gen))/2) + (U == 0) * (torch.randn((ndraws, 1), generator = gen)/2 + 1/2)
+    D =  (U == 1) * (torch.log(torch.rand((ndraws, 1), generator = gen))/3) + (U == 0) * (torch.randn((ndraws, 1), generator = gen)/3 + 1/3)
     Z = U/2 + torch.randn((ndraws, 1), generator = gen)/4
     
     W = U + torch.randn((ndraws, 1), generator = gen)/4
