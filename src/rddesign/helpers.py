@@ -11,12 +11,12 @@ class Results():
         self.n = n
         self.predict = predict
         self.status = status
-        self.left_ci = t.ppf(0.025, self.n - 4) * self.se + self.est
-        self.right_ci = t.ppf(0.975, self.n - 4) * self.se + self.est
+        self.left_ci = norm.ppf(0.025) * self.se + self.est
+        self.right_ci = norm.ppf(0.975) * self.se + self.est
         if est > 0:
-            self.pvalue = 1 - t.cdf(est/se, self.n - 4)
+            self.pvalue = 1 - norm.cdf(est/se)
         if est <= 0:
-            self.pvalue = t.cdf(est/se, self.n - 4)
+            self.pvalue = norm.cdf(est/se)
     
     def summary(self):
         output = self.__str__()

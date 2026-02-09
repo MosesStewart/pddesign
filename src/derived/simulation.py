@@ -8,24 +8,24 @@ model_2 = lambda d: (d < 0) * ( -0.297854 * d**5 - 0.501866 * d**4 + 1.088881 * 
 model_3 = lambda d: -0.84031627 * d**7 + 1.15154508 * d**6 + 0.17992519 * d**5 + 1.30075625 * d**4 + 2.06973653 * d**3 - 4.72852451 * d**2 + 1.79087152 * d + 0.37626832
 
 
-def sim_bias(μx, ndraws = 4000, seed = 10042002):
+def sim_biased(μx, ndraws = 4000, seed = 10042002):
     gen = torch.Generator().manual_seed(seed)
     U = torch.bernoulli(0.45 * torch.ones((ndraws, 1)), generator = gen)
     
-    D =  (U == 1) * (torch.log(torch.rand((ndraws, 1), generator = gen))/3) + (U == 0) * (torch.randn((ndraws, 1), generator = gen)/3 + 1/3)
-    Z = U/2 + torch.randn((ndraws, 1), generator = gen)/4
+    D =  (U == 1) * (torch.log(torch.rand((ndraws, 1), generator = gen))/4) + (U == 0) * (torch.randn((ndraws, 1), generator = gen)/4 + 1/4)
+    Z = 3*U/5 + torch.randn((ndraws, 1), generator = gen)/4 + D/8
     
-    W = U + torch.randn((ndraws, 1), generator = gen)/4
-    Y = μx(D) - 3 * U/5 + torch.randn((ndraws, 1), generator = gen)/4
+    W = 3*U/5 + torch.randn((ndraws, 1), generator = gen)/3
+    Y = μx(D) - 3*U/5 + torch.randn((ndraws, 1), generator = gen)/4
     return Y.flatten().detach().cpu().numpy(), W.flatten().detach().cpu().numpy(), D.flatten().detach().cpu().numpy(), Z.flatten().detach().cpu().numpy(), U.flatten().detach().cpu().numpy()
 
 def sim_unbiased(μx, ndraws = 4000, seed = 10042002):
     gen = torch.Generator().manual_seed(seed)
     U = torch.bernoulli(0.45 * torch.ones((ndraws, 1)), generator = gen)
     
-    D =  (U == 1) * (torch.log(torch.rand((ndraws, 1), generator = gen))/3) + (U == 0) * (torch.randn((ndraws, 1), generator = gen)/3 + 1/3)
-    Z = U/2 + torch.randn((ndraws, 1), generator = gen)/4
+    D =  (U == 1) * (torch.log(torch.rand((ndraws, 1), generator = gen))/4) + (U == 0) * (torch.randn((ndraws, 1), generator = gen)/4 + 1/4)
+    Z = 3*U/5 + torch.randn((ndraws, 1), generator = gen)/4 + D/8
     
-    W = U + torch.randn((ndraws, 1), generator = gen)/4
+    W = 3*U/5 + torch.randn((ndraws, 1), generator = gen)/3
     Y = μx(D) + torch.randn((ndraws, 1), generator = gen)/4
     return Y.flatten().detach().cpu().numpy(), W.flatten().detach().cpu().numpy(), D.flatten().detach().cpu().numpy(), Z.flatten().detach().cpu().numpy(), U.flatten().detach().cpu().numpy()

@@ -48,7 +48,7 @@ class pdd:
         self.vecW = self.W.T.contiguous().reshape(-1, 1)
         self.q = int(self.S.shape[1]) - 1
         self.h = {'+': torch.std(self.D) * self.n**(-1/5), '-': torch.std(self.D) * self.n**(-1/5)}
-        self.b = self.h
+        self.b = {'+': 1/(0.778) * self.h['+'], '-': 1/(0.778) * self.h['-']}
         self.gen = torch.Generator(device = device).manual_seed(seed)
         self.M = 2 * self.n * int(log(self.n))
         self.I, self.J = self.__sample_perms(self.n, self.M, self.device, self.gen)
@@ -91,7 +91,7 @@ class pdd:
         self.Λ_1 = {'+': (1 / self.n) * (self.R_1['+'].T @ self.K['+'] @ (Ih['+'] * Dm)**2), '-': (1 / self.n) * (self.R_1['-'].T @ self.K['-'] @ (Ih['-'] * Dm)**2)}
         self.Λ_2 = {'+': (1 / self.n) * (self.R_2['+'].T @ self.L['+'] @ (Ib['+'] * Dm)**2), '-': (1 / self.n) * (self.R_2['-'].T @ self.L['-'] @ (Ib['-'] * Dm)**2)}
         self.Λ_1_2 = {'+': (1 / self.n) * (self.R_1['+'].T @ self.K['+'] @ (Ih['+'] * Dm)**3), '-': (1 / self.n) * (self.R_1['-'].T @ self.K['-'] @ (Ih['-'] * Dm)**3)}
-        self.Λ_2_2 = {'+': (1 / self.n) * (self.R_2['+'].T @ self.L['+'] @ (Ib['+'] * Dm)**3), '-': (1 / self.n) * (self.R_2['-'].T @ self.L['-'] @ (Ib['-'] * Dm)**3)}
+        self.Λ_2_1 = {'+': (1 / self.n) * (self.R_2['+'].T @ self.L['+'] @ (Ib['+'] * Dm)**2), '-': (1 / self.n) * (self.R_2['-'].T @ self.L['-'] @ (Ib['-'] * Dm)**2)}
         self.e_2 = torch.tensor([[0.0], [0.0], [1.0]], dtype=self.dtype, device=self.device)
         self.l_q1 = torch.ones((self.q + 1, 1), dtype=self.dtype, device=self.device)
         self.e_3 = torch.tensor([[0.0], [0.0], [0.0], [1.0], [0.0], [0.0]], dtype=self.dtype, device=self.device)
@@ -112,7 +112,6 @@ class pdd:
                   '-': self.ε['-'].abs(),}  # (n, q+1, 1)
         self.Σ = {'+': torch.diag((self.σ['+'][:, :, 0] ** 2).transpose(0, 1).contiguous().flatten()),
                   '-': torch.diag((self.σ['-'][:, :, 0] ** 2).transpose(0, 1).contiguous().flatten()),}
-        
         self.P_bc = {'+': self.Γ_1_inv['+'] @ self.R_1['+'].T @ self.K['+'] - (self.h['+'] / self.b['+'])**2 * self.Γ_1_inv['+'] @ self.Λ_1['+'] @ self.e_2.T @ self.Γ_2_inv['+'] @ self.R_2['+'].T @ self.L['+'], 
                 '-': self.Γ_1_inv['-'] @ self.R_1['-'].T @ self.K['-'] - (self.h['-'] / self.b['-'])**2 * self.Γ_1_inv['-'] @ self.Λ_1['-'] @ self.e_2.T @ self.Γ_2_inv['-'] @ self.R_2['-'].T @ self.L['-']}
         self.v_bc = torch.sqrt((self.h['+'] / self.n) * (self.s.T @ torch.kron(self.I_q1, self.P_bc['+']) @ self.Σ['+'] @ torch.kron(self.I_q1, self.P_bc['+']).T @ self.s) +\
@@ -253,23 +252,23 @@ class pdd:
             self.h['+'] = h[1]
             if torch.min(h) <= 0 or torch.max(h) > 10 * torch.max(torch.abs(self.D - self.cutoff)):
                 return torch.inf
-            self.b = self.h
+            self.b = {'+': 1/(0.778) * self.h['+'], '-': 1/(0.778) * self.h['-']}
             self.__build_matrices()
             self.__build_edgeworth_terms()
             𝜇_3 = {'+': self.__get_𝜇_3('+'), '-': self.__get_𝜇_3('-')}
-            𝜂_bc = {'+': torch.sqrt(self.n * self.h['+']) * self.h['+']**3 * self.s.T @ torch.kron(𝜇_3['+'] / factorial(3), self.Γ_1_inv['+'] @ (self.Λ_1_2['+'] - self.Λ_1['+'] @ self.e_2.T @ self.Γ_2_inv['+'] @ self.Λ_2_2['+'])),
-                    '-': torch.sqrt(self.n * self.h['-']) * self.h['-']**3 * self.s.T @ torch.kron(𝜇_3['-'] / factorial(3), self.Γ_1_inv['-'] @ (self.Λ_1_2['-'] - self.Λ_1['-'] @ self.e_2.T @ self.Γ_2_inv['-'] @ self.Λ_2_2['-']))}
+            𝜂_bc = {'+': torch.sqrt(self.n * self.h['+']) * self.h['+']**3 * self.s.T @ torch.kron(𝜇_3['+'] / factorial(3), self.Γ_1_inv['+'] @ (self.Λ_1_2['+'] - self.Λ_1['+'] @ self.e_2.T @ self.Γ_2_inv['+'] @ self.Λ_2_1['+'])),
+                    '-': torch.sqrt(self.n * self.h['-']) * self.h['-']**3 * self.s.T @ torch.kron(𝜇_3['-'] / factorial(3), self.Γ_1_inv['-'] @ (self.Λ_1_2['-'] - self.Λ_1['-'] @ self.e_2.T @ self.Γ_2_inv['-'] @ self.Λ_2_1['-']))}
             q_1 = {'+': self.__get_q_1('+'), '-': self.__get_q_1('-')}
             q_2 = self.__get_q_2()
             q_3 = {'+': self.__get_q_3('+'), '-': self.__get_q_3('-')}
-            H = {'+': self.h['+'] * self.n**(1/5), '-': self.h['-'] * self.n**(1/5)}
-            loss = (( (1/H['+']) * q_1['+'] + H['+']**9 * 𝜂_bc['+']**2 * q_2 + H['+']**3 * 𝜂_bc['+'] * q_3['+'] )/self.n)**2 + (( (1/H['-']) * q_1['-'] + H['-']**9 * 𝜂_bc['-']**2 * q_2 + H['-']**3 * 𝜂_bc['-'] * q_3['-'] )/self.n)**2
+            loss = (( (1/(self.n * self.h['+'])) * q_1['+'] + self.n * self.h['+']**7 * 𝜂_bc['+']**2 * q_2 + self.h['+']**3 * 𝜂_bc['+'] * q_3['+'] )/self.n**(3/4))**2 +\
+                (( (1/(self.n * self.h['-'])) * q_1['-'] + self.n * self.h['-']**7 * 𝜂_bc['-']**2 * q_2 + self.h['-']**3 * 𝜂_bc['-'] * q_3['-'] )/self.n**(3/4))**2
             return loss
         
         h0 = torch.tensor([self.h['-'], self.h['+']])
         res = minimize(obj, h0, max_iter = 50, method = optim_mode, tol = tol)
         return res
-    
+        
     def fit(self):
         if type(self.custom_bandwidth) != type(None):
             self.h = {'-': self.custom_bandwidth[0], '+': self.custom_bandwidth[1]}
@@ -278,12 +277,13 @@ class pdd:
             bres = self.__get_bandwidth()
             self.h = {'-': bres.x[0], '+': bres.x[1]}
             status = bres.success
-        self.b = self.h
+        self.b = {'+': 1/(0.778) * self.h['+'], '-': 1/(0.778) * self.h['-']}
         self.__build_matrices()
         P_bc = self.P_bc['+'] - self.P_bc['-']
         est = (1/self.n) * self.s.T @ torch.kron(self.I_q1, P_bc) @ self.vecS
         se = torch.sqrt(( 1 / self.n**2) * (self.s.T @ torch.kron(self.I_q1, self.P_bc['+']) @ self.Σ['+'] @ torch.kron(self.I_q1, self.P_bc['+']).T @ self.s) +\
-                                (1 / self.n**2) * (self.s.T @ torch.kron(self.I_q1, self.P_bc['-']) @ self.Σ['-'] @ torch.kron(self.I_q1, self.P_bc['-']).T @ self.s))
+                        (1 / self.n**2) * (self.s.T @ torch.kron(self.I_q1, self.P_bc['-']) @ self.Σ['-'] @ torch.kron(self.I_q1, self.P_bc['-']).T @ self.s))
+        #se = self.__bootstrap_se()
         resid_pos = self.Y - torch.hstack([self.R_1['+'], self.W]) @ torch.linalg.inv(torch.vstack([self.R_1['+'].T, self.Z.T]) @ self.K['+'] @ torch.hstack([self.R_1['+'], self.W])) @ (torch.vstack([self.R_1['+'].T, self.Z.T]) @ self.K['+'] @ self.Y)
         resid_neg = self.Y - torch.hstack([self.R_1['-'], self.W]) @ torch.linalg.inv(torch.vstack([self.R_1['-'].T, self.Z.T]) @ self.K['-'] @ torch.hstack([self.R_1['-'], self.W])) @ (torch.vstack([self.R_1['-'].T, self.Z.T]) @ self.K['-'] @ self.Y)
         resids = (self.ind['+'] * resid_pos + self.ind['-'] * resid_neg).flatten().detach().cpu().numpy()
@@ -329,8 +329,8 @@ class rdd:
             self.custom_bandwidth = torch.as_tensor(bandwidth, dtype=dtype, device=device).flatten()
         else:
             self.custom_bandwidth = None
-        self.h = {'-': 10 * torch.std(self.D) * self.n**(-1/5), '+': 10 * torch.std(self.D) * self.n**(-1/5)}
-        self.b = self.h
+        self.h = {'-': torch.std(self.D) * self.n**(-1/5), '+': torch.std(self.D) * self.n**(-1/5)}
+        self.b = {'+': 1/(0.778) * self.h['+'], '-': 1/(0.778) * self.h['-']}
         self.gen = torch.Generator(device = device).manual_seed(seed)
         self.M = 2 * self.n * int(log(self.n))
         self.I, self.J = self.__sample_perms(self.n, self.M, self.device, self.gen)
@@ -366,7 +366,7 @@ class rdd:
         self.Λ_1 = {'+': (1 / self.n) * (self.R_1['+'].T @ self.K['+'] @ (Ih['+'] * Dm)**2), '-': (1 / self.n) * (self.R_1['-'].T @ self.K['-'] @ (Ih['-'] * Dm)**2)}
         self.Λ_2 = {'+': (1 / self.n) * (self.R_2['+'].T @ self.L['+'] @ (Ib['+'] * Dm)**2), '-': (1 / self.n) * (self.R_2['-'].T @ self.L['-'] @ (Ib['-'] * Dm)**2)}
         self.Λ_1_2 = {'+': (1 / self.n) * (self.R_1['+'].T @ self.K['+'] @ (Ih['+'] * Dm)**3), '-': (1 / self.n) * (self.R_1['-'].T @ self.K['-'] @ (Ih['-'] * Dm)**3)}
-        self.Λ_2_2 = {'+': (1 / self.n) * (self.R_2['+'].T @ self.L['+'] @ (Ib['+'] * Dm)**3), '-': (1 / self.n) * (self.R_2['-'].T @ self.L['-'] @ (Ib['-'] * Dm)**3)}
+        self.Λ_2_1 = {'+': (1 / self.n) * (self.R_2['+'].T @ self.L['+'] @ (Ib['+'] * Dm)**2), '-': (1 / self.n) * (self.R_2['-'].T @ self.L['-'] @ (Ib['-'] * Dm)**2)}
         self.e_0 = torch.tensor([[1.0], [0.0]], dtype=self.dtype, device=self.device)
         self.e_2 = torch.tensor([[0.0], [0.0], [1.0]], dtype=self.dtype, device=self.device)
         self.e_3 = torch.tensor([[0.0], [0.0], [0.0], [1.0], [0.0], [0.0]], dtype=self.dtype, device=self.device)
@@ -379,7 +379,7 @@ class rdd:
         vecB2β = {'+': self.Γ_2_inv['+'] @ self.R_2['+'].T @ self.L['+'] / self.n @ self.Y, 
                   '-': self.Γ_2_inv['-'] @ self.R_2['-'].T @ self.L['-'] / self.n @ self.Y}
         self.ε = {'+': (self.Y - self.R_2['+'] @ vecB2β['+']).unsqueeze(1),  # (n, q+1, 1)
-                  '-': (self.Y - self.R_2['+'] @ vecB2β['-']).unsqueeze(1)}  # (n, q+1, 1)
+                  '-': (self.Y - self.R_2['-'] @ vecB2β['-']).unsqueeze(1)}  # (n, q+1, 1)
         self.σ = {'+': self.ε['+'].abs(),  # (n, q+1, 1)
                   '-': self.ε['-'].abs(),}  # (n, q+1, 1)
         self.Σ = {'+': torch.diag((self.σ['+'][:, :, 0] ** 2).transpose(0, 1).contiguous().flatten()),
@@ -523,17 +523,17 @@ class rdd:
             self.h['+'] = h[1]
             if torch.min(h) <= 0 or torch.max(h) > 10 * torch.max(torch.abs(self.D - self.cutoff)):
                 return torch.inf
-            self.b = self.h
+            self.b = {'+': 1/(0.778) * self.h['+'], '-': 1/(0.778) * self.h['-']}
             self.__build_matrices()
             self.__build_edgeworth_terms()
             𝜇_3 = {'+': self.__get_𝜇_3('+'), '-': self.__get_𝜇_3('-')}
-            𝜂_bc = {'+': torch.sqrt(self.n * self.h['+']) * self.h['+']**3 * 𝜇_3['+'] / factorial(3) * self.e_0.T @ self.Γ_1_inv['+'] @ (self.Λ_1_2['+'] - self.Λ_1['+'] @ self.e_2.T @ self.Γ_2_inv['+'] @ self.Λ_2_2['+']),
-                    '-': torch.sqrt(self.n * self.h['-']) * self.h['-']**3 * 𝜇_3['-'] / factorial(3) * self.e_0.T @ self.Γ_1_inv['-'] @ (self.Λ_1_2['-'] - self.Λ_1['-'] @ self.e_2.T @ self.Γ_2_inv['-'] @ self.Λ_2_2['-'])}
+            𝜂_bc = {'+': torch.sqrt(self.n * self.h['+']) * self.h['+']**3 * 𝜇_3['+'] / factorial(3) * self.e_0.T @ self.Γ_1_inv['+'] @ (self.Λ_1_2['+'] - self.Λ_1['+'] @ self.e_2.T @ self.Γ_2_inv['+'] @ self.Λ_2_1['+']),
+                    '-': torch.sqrt(self.n * self.h['-']) * self.h['-']**3 * 𝜇_3['-'] / factorial(3) * self.e_0.T @ self.Γ_1_inv['-'] @ (self.Λ_1_2['-'] - self.Λ_1['-'] @ self.e_2.T @ self.Γ_2_inv['-'] @ self.Λ_2_1['-'])}
             q_1 = {'+': self.__get_q_1('+'), '-': self.__get_q_1('-')}
             q_2 = self.__get_q_2()
             q_3 = {'+': self.__get_q_3('+'), '-': self.__get_q_3('-')}
-            H = {'+': self.h['+'] * self.n**(1/5), '-': self.h['-'] * self.n**(1/5)}
-            loss = (( (1/H['+']) * q_1['+'] + H['+']**9 * 𝜂_bc['+']**2 * q_2 + H['+']**3 * 𝜂_bc['+'] * q_3['+'] )/self.n)**2 + (( (1/H['-']) * q_1['-'] + H['-']**9 * 𝜂_bc['-']**2 * q_2 + H['-']**3 * 𝜂_bc['-'] * q_3['-'] )/self.n)**2
+            loss = (( (1/(self.n * self.h['+'])) * q_1['+'] + self.n * self.h['+']**7 * 𝜂_bc['+']**2 * q_2 + self.h['+']**3 * 𝜂_bc['+'] * q_3['+'] )/self.n**(3/4))**2 +\
+                (( (1/(self.n * self.h['-'])) * q_1['-'] + self.n * self.h['-']**7 * 𝜂_bc['-']**2 * q_2 + self.h['-']**3 * 𝜂_bc['-'] * q_3['-'] )/self.n**(3/4))**2
             return loss
         
         h0 = torch.tensor([self.h['-'], self.h['+']])
@@ -548,7 +548,7 @@ class rdd:
             bres = self.__get_bandwidth()
             self.h = {'-': bres.x[0], '+': bres.x[1]}
             status = bres.success
-        self.b = self.h
+        self.b = {'+': 1/(0.778) * self.h['+'], '-': 1/(0.778) * self.h['-']}
         self.__build_matrices()
         P_bc = self.P_bc['+'] - self.P_bc['-']
         est = (1/self.n) * self.e_0.T @ P_bc @ self.Y
