@@ -6,7 +6,7 @@ from derived.simulation import *
 
 def main():
     outdir = 'temp'
-    Y, W, D, Z, U = sim_unbiased(model_0, ndraws = 500, seed = 3)
+    Y, W, D, Z, U = sim_unbiased(model_0, ndraws = 500, seed = 1)
     
     model = rdd(Y, D, cutoff = 0.0, device = 'cuda', kernel = 'triangle')
     res_rdd = model.fit()

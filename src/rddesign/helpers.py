@@ -23,7 +23,7 @@ class Results():
         print(output)
         
     def __str__(self):
-        vartype = 'Robust Bias Corr.'
+        vartype = 'Robust Bias Correct'
         
         length = 100
         output = '\n' + (self.model).center(length) + '\n'
