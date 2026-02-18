@@ -12,19 +12,18 @@ def main():
     TEs = {'0': 1, '1': 0.550595 - 0.443452, '2': 0.375062 - 3.590380, '3': 0}
     DGPs = {'no_confounding': sim_unbiased, 'confounding': sim_biased}
     band_nsims = 10
-    nsims = 200
+    nsims = 400 - band_nsims
     
     for dgp in DGPs.keys():
         rows = []
         for n in ns:
-            row = pd.DataFrame({'$\\tilde{\\mu}_{j}(\\cdot) = $': f'n = {n}', '$\\hat{\\tau}^{\\text{rbc}}_{\\text{pdd}} - \\tau_{0}$': '', 'Coverage': '', '$\\overline{\\text{Length}}$': '', '$\\overline{v}_{\\text{rbc}}/\\sqrt{nh_{n}}$': '', 
-                                '$h_{+}$': '', '$h_{-}$': '', '$\\hat{\\tau}^{\\text{rbc}}_{\\text{rdd}} - \\tau_{0}$': '', 'Coverage\\vphantom{l}': '', '$\\overline{\\text{Length\\vphantom{l}}}$': '', 
-                                '$\\overline{v}_{\\text{rbc}}/\\sqrt{nh_{n}}$\\vphantom{l}': '', '$h_{+}$\\vphantom{l}': '', '$h_{-}$\\vphantom{l}': ''}, index = [0])
+            row = pd.DataFrame({'$\\tilde{\\mu}_{j}(\\cdot) = $': f'n = {n}', 'bias': '', 'Coverage': '', 'Length$': '',  '$h$': '',
+                                'bias\\vphantom{l}': '', 'Coverage\\vphantom{l}': '', 'Length\\vphantom{l}': '', '$h$\\vphantom{l}': ''}, index = [0])
             rows.append(row.set_index('$\\tilde{\\mu}_{j}(\\cdot) = $'))
             for model in models.keys():
                 band_pos_pdd, band_neg_pdd = [], []
                 band_pos_rdd, band_neg_rdd = [], []
-                reps, successes = 0, 0
+                reps, successes = 10042002, 0
                 print(n, 'Model %s' % model)
                 '''
                 while successes < band_nsims:
@@ -72,11 +71,10 @@ def main():
                     else:
                         reps += 1
 
-                row = pd.DataFrame({'$\\tilde{\\mu}_{j}(\\cdot) = $': '$\\tilde{\\mu}_{%s}(\\cdot)$\\vphantom{%d}' % (model, n), '$\\hat{\\tau}^{\\text{rbc}}_{\\text{pdd}} - \\tau_{0}$': np.mean(est_pdd) - TEs[model], 
-                                    'Coverage': 100 * np.mean(covered_pdd), '$\\overline{\\text{Length}}$': np.mean(length_pdd), 
-                                    '$\\overline{v}_{\\text{rbc}}/\\sqrt{nh_{n}}$': np.mean(se_pdd),  '$h_{-}$': band_pdd[0], '$h_{+}$': band_pdd[1],
-                                    '$\\hat{\\tau}^{\\text{rbc}}_{\\text{rdd}} - \\tau_{0}$': np.mean(est_rdd) - TEs[model], 'Coverage\\vphantom{l}': 100 * np.mean(covered_rdd), '$\\overline{\\text{Length\\vphantom{l}}}$': np.mean(length_rdd), 
-                                    '$\\overline{v}_{\\text{rbc}}/\\sqrt{nh_{n}}$\\vphantom{l}': np.mean(se_rdd), '$h_{-}$\\vphantom{l}': band_rdd[0], '$h_{+}$\\vphantom{l}': band_rdd[1]}, index = [0])
+                row = pd.DataFrame({'$\\tilde{\\mu}_{j}(\\cdot) = $': '$\\tilde{\\mu}_{%s}(\\cdot)$\\vphantom{%d}' % (model, n), 'bias': np.mean(est_pdd) - TEs[model], 
+                                    'Coverage': 100 * np.mean(covered_pdd), 'Length': np.mean(length_pdd),  '$h$': band_pdd[0],
+                                    'bias\\vphantom{l}': np.mean(est_rdd) - TEs[model], 'Coverage\\vphantom{l}': 100 * np.mean(covered_rdd), 'Length\\vphantom{l}$': np.mean(length_rdd), 
+                                    '$h$\\vphantom{l}': band_rdd[0]}, index = [0])
                 rows.append(row.set_index('$\\tilde{\\mu}_{j}(\\cdot) = $'))
             
         df_res = pd.concat(rows, axis = 0)
@@ -86,11 +84,10 @@ def main():
                     '\\begin{center}\n' + '<insert caption>\n' + \
                     tabulate(df_res, headers = 'keys', tablefmt="latex_raw") + \
                     '\n\\end{center}\n' + '\\medskip\n' + '\\end{table}\n'
-        table = table.replace('\\begin{tabular}{lrrrrrrrrrrrr}', '\\begin{tabular}{l@{\\hskip 1em}c@{\\hskip 1em}c@{\\hskip 1em}c@{\\hskip 1em}c@{\\hskip 1em}' +\
-                                'c@{\\hskip 1em}c@{\\hskip 1em}c@{\\hskip 1em}c@{\\hskip 1em}c@{\\hskip 1em}c@{\\hskip 1em}c@{\\hskip 1em}c}\n\\toprule\n' +\
-                                '& \\multicolumn{6}{c}{PDD} & ' +\
-                                '\\multicolumn{6}{c}{RDD} \\\\[-0.25em] \n' +\
-                                '\\cmidrule(r{2em}){2-7} \\cmidrule(r){8-13} & \\\\[-1.75em]')
+        table = table.replace('\\begin{tabular}{lrrrrrrrrrr}', '\\begin{tabular}{l@{\\hskip 1em}c@{\\hskip 1em}c@{\\hskip 1em}c@{\\hskip 1em}c@{\\hskip 1em}' +\
+                                'c@{\\hskip 1em}c@{\\hskip 1em}c@{\\hskip 1em}c@{\\hskip 1em}c@{\\hskip 1em}c}\n\\toprule\n' +\
+                                '& \\multicolumn{4}{c}{PDD} & \\multicolumn{4}{c}{RDD} \\\\[-0.25em] \n' +\
+                                '\\cmidrule(r{2em}){2-5} \\cmidrule(r){6-9} & \\\\[-1.75em]')
         table = table.replace('nan', '')
         file = open(f'{outdir}/{dgp}4k.tex', 'w')
         file.write(table)
