@@ -1,6 +1,21 @@
-import pandas as pd, numpy as np
-from scipy.stats import t, chi2, norm
-        
+import pandas as pd, numpy as np, torch
+from scipy.stats import norm
+
+def rectangle_kernel(u: torch.Tensor) -> torch.Tensor:
+    u = torch.as_tensor(u, dtype=torch.float32)
+    a = torch.abs(u)
+    return torch.where(a <= 1.0, 1.0, torch.zeros_like(a)).to(torch.float32)
+
+def triangular_kernel(u: torch.Tensor) -> torch.Tensor:
+    u = torch.as_tensor(u, dtype=torch.float32)
+    a = torch.abs(u)
+    return torch.where(a <= 1.0, 1.0 - a, torch.zeros_like(a)).to(torch.float32)
+
+def epanechnikov_kernel(u: torch.Tensor) -> torch.Tensor:
+    u = torch.as_tensor(u, dtype=torch.float32)
+    a = torch.abs(u)
+    return torch.where(a <= 1.0, (3/4) * (1 - a**2), torch.zeros_like(a)).to(torch.float32)
+
 class Results():
     def __init__(self, model, est, se, resid, bandwidth, n, predict, status):
         self.model = model

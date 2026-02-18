@@ -6,28 +6,29 @@ from derived.simulation import *
 
 def main():
     outdir = 'temp'
-    Y, W, D, Z, U = sim_unbiased(model_0, ndraws = 500, seed = 1)
+    Y, W, D, Z, U = sim_unbiased(model_0, ndraws = 1000, seed = 1)
     
+    model = pdd(Y, W, D, Z, cutoff = 0.0, device = 'cuda', kernel = 'triangle', bandwidth = [0.20, 0.20])
+    res_pdd = model.fit()
+    print(res_pdd)
+    
+    '''
     model = rdd(Y, D, cutoff = 0.0, device = 'cuda', kernel = 'triangle')
     res_rdd = model.fit()
     print(res_rdd)
+    '''
     
     fig, ax = scatterplot(Y, D)
     ax.set_ylabel('Y')
-    fig.savefig(f'{outdir}/YvsD.pdf', transparent = True, bbox_inches="tight")
+    fig.savefig(f'{outdir}/YvsDnew.pdf', transparent = True, bbox_inches="tight")
     
     fig, ax = scatterplot(W, D)
     ax.set_ylabel('W')
-    fig.savefig(f'{outdir}/WvsD.pdf', transparent = True, bbox_inches="tight")
+    fig.savefig(f'{outdir}/WvsDnew.pdf', transparent = True, bbox_inches="tight")
     
     fig, ax = scatterplot(U, D)
     ax.set_ylabel('U')
-    fig.savefig(f'{outdir}/UvsD.pdf', transparent = True, bbox_inches="tight")
-    #model = pdd(Y, W, D, Z, cutoff = 0.0, device = 'cuda', kernel = 'triangle', bandwidth = [0.50, 0.50])
-    #res_pdd = model.fit()
-    
-    #model = rdd(W, D, cutoff = 0.0, device = 'cuda', kernel = 'triangle', bandwidth = [0.50, 0.50])
-    #res_w = model.fit()
+    fig.savefig(f'{outdir}/UvsDnew.pdf', transparent = True, bbox_inches="tight")
 
 def scatterplot(y, D, cutoff = 0):
     fig, ax = plt.subplots()
