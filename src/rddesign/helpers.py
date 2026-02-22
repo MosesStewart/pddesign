@@ -1,4 +1,4 @@
-import pandas as pd, numpy as np, torch
+import torch
 from scipy.stats import norm
 
 def rectangle_kernel(u: torch.Tensor) -> torch.Tensor:

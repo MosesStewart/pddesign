@@ -7,32 +7,34 @@ from rddesign.main import *
 
 def main():
     outdir = 'output/tables'
-    ns = [500, 2000, 8000]
+    ns = [500, 2500, 10000]
     models = {'0': model_0, '1': model_1, '2': model_2, '3': model_3}
     TEs = {'0': 1, '1': 0.550595 - 0.443452, '2': 0.375062 - 3.590380, '3': 0}
     DGPs = {'no_confounding': sim_unbiased, 'confounding': sim_biased}
     band_nsims = 10
-    nsims = 400 - band_nsims
+    nsims = 400
     
     for dgp in DGPs.keys():
         rows = []
         for n in ns:
-            row = pd.DataFrame({'$\\tilde{\\mu}_{j}(\\cdot) = $': f'n = {n}', 'bias': '', 'Coverage': '', 'Length$': '',  '$h$': '',
-                                'bias\\vphantom{l}': '', 'Coverage\\vphantom{l}': '', 'Length\\vphantom{l}': '', '$h$\\vphantom{l}': ''}, index = [0])
+            row = pd.DataFrame({'$\\tilde{\\mu}_{j}(\\cdot) = $': f'n = {n}', 'bias': '', 'Coverage': '', 'Length$': '',  '$h_{n, -}$': '', '$h_{n, +}$': '',
+                                'bias\\vphantom{l}': '', 'Coverage\\vphantom{l}': '', 'Length\\vphantom{l}': '', '$h_{n, -}$\\vphantom{l}': '', '$h_{n, +}$\\vphantom{l}': ''}, index = [0])
             rows.append(row.set_index('$\\tilde{\\mu}_{j}(\\cdot) = $'))
             for model in models.keys():
                 band_pos_pdd, band_neg_pdd = [], []
                 band_pos_rdd, band_neg_rdd = [], []
-                reps, successes = 10042002, 0
+                reps, successes = 0, 0
                 print(n, 'Model %s' % model)
-                '''
                 while successes < band_nsims:
                     Y, W, D, Z, U = DGPs[dgp](models[model], ndraws = n, seed = reps)
-                    design = pdd(Y, W, D, Z, cutoff = 0.0, device = 'cuda', kernel = 'triangle')
-                    res_pdd = design.fit()
-                    
-                    design = rdd(Y, D, cutoff = 0.0, device = 'cuda', kernel = 'triangle')
-                    res_rdd = design.fit()
+                    try:
+                        design = pdd(Y, W, D, Z, cutoff = 0.0, device = 'cuda', kernel = 'triangle')
+                        res_pdd = design.fit()
+                        
+                        design = rdd(Y, D, cutoff = 0.0, device = 'cuda', kernel = 'triangle')
+                        res_rdd = design.fit()
+                    except:
+                        res_pdd, res_rdd = Failure(), Failure()
                     
                     if res_pdd.status == True and res_rdd.status == True:
                         reps += 1
@@ -44,9 +46,9 @@ def main():
                     else:
                         reps += 1
                     print(successes, reps)
-                '''
-                band_pdd = [0.2 * n**(-1/5)/500**(-1/5), 0.2 * n**(-1/5)/500**(-1/5)] #[np.mean(band_neg_pdd), np.mean(band_pos_pdd)]
-                band_rdd = [0.2 * n**(-1/5)/500**(-1/5), 0.2 * n**(-1/5)/500**(-1/5)] #[np.mean(band_neg_rdd), np.mean(band_pos_rdd)]
+                
+                band_pdd = [np.mean(band_neg_pdd), np.mean(band_pos_pdd)]
+                band_rdd = [np.mean(band_neg_rdd), np.mean(band_pos_rdd)]
                 covered_pdd, length_pdd, se_pdd, est_pdd = [], [], [], []
                 covered_rdd, length_rdd, se_rdd, est_rdd = [], [], [], []
 
@@ -72,9 +74,9 @@ def main():
                         reps += 1
 
                 row = pd.DataFrame({'$\\tilde{\\mu}_{j}(\\cdot) = $': '$\\tilde{\\mu}_{%s}(\\cdot)$\\vphantom{%d}' % (model, n), 'bias': np.mean(est_pdd) - TEs[model], 
-                                    'Coverage': 100 * np.mean(covered_pdd), 'Length': np.mean(length_pdd),  '$h$': band_pdd[0],
+                                    'Coverage': 100 * np.mean(covered_pdd), 'Length': np.mean(length_pdd),  '$h_{n, -}$': band_pdd[0], '$h_{n, +}$': band_pdd[1],
                                     'bias\\vphantom{l}': np.mean(est_rdd) - TEs[model], 'Coverage\\vphantom{l}': 100 * np.mean(covered_rdd), 'Length\\vphantom{l}$': np.mean(length_rdd), 
-                                    '$h$\\vphantom{l}': band_rdd[0]}, index = [0])
+                                    '$h_{n, -}$\\vphantom{l}': band_rdd[0], '$h_{n, +}$\\vphantom{l}': band_rdd[1]}, index = [0])
                 rows.append(row.set_index('$\\tilde{\\mu}_{j}(\\cdot) = $'))
             
         df_res = pd.concat(rows, axis = 0)
@@ -93,6 +95,9 @@ def main():
         file.write(table)
         file.close()
                 
-
+class Failure():
+    def __init__(self):
+        self.status = False
+        
 if __name__ == '__main__':
     main()

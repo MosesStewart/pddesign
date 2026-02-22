@@ -1,9 +1,8 @@
-import numpy as np, pandas as pd, warnings, torch, sys, os, re
+import numpy as np, warnings, torch, sys, os, re
 from scipy.stats import norm
 sys.path.append('/'.join(re.split('/|\\\\', os.path.dirname( __file__ ))[0:-1]))
 from rddesign.helpers import *
-from itertools import permutations
-from torchmin import minimize, minimize_constr
+from torchmin import minimize
 from math import factorial, log
 
 class pdd:
@@ -104,8 +103,8 @@ class pdd:
                                                                          [self.𝛾[j]**2 * self.e_0.T @ self.P_bc['-'] @ self.Σ['-'][j + 1, :, :] @ self.P_bc['-'].T @ self.e_0 for j in range(self.q)])))}
 
     def __get_𝛾(self):
-        self.Q = (self.Z.T * self.𝜔['-'].T) @ (self.I_n - self.R_1['-'] @ torch.linalg.inv((self.R_1['-'].T * self.𝜔['-'].T) @ self.R_1['-']) @ (self.R_1['-'].T * self.𝜔['-'].T)) @ self.W
-        self.𝛾 = - (torch.linalg.inv(self.Q) @ (self.Z.T * self.𝜔['-'].T) @ (self.I_n - self.R_1['-'] @ torch.linalg.inv((self.R_1['-'].T * self.𝜔['-'].T) @ self.R_1['-']) @ (self.R_1['-'].T * self.𝜔['-'].T)) @ self.Y).flatten()
+        self.Q = (self.Z.T * self.𝜔['-'].T) @ (self.I_n - self.R_1['-'] @ torch.linalg.pinv((self.R_1['-'].T * self.𝜔['-'].T) @ self.R_1['-']) @ (self.R_1['-'].T * self.𝜔['-'].T)) @ self.W
+        self.𝛾 = - (torch.linalg.pinv(self.Q) @ (self.Z.T * self.𝜔['-'].T) @ (self.I_n - self.R_1['-'] @ torch.linalg.pinv((self.R_1['-'].T * self.𝜔['-'].T) @ self.R_1['-']) @ (self.R_1['-'].T * self.𝜔['-'].T)) @ self.Y).flatten()
         
     def __build_edgeworth_terms(self):
         # Storing edgeworth terms as 2d vectors
@@ -240,8 +239,6 @@ class pdd:
         def obj(h):
             self.h['-'] = h[0]
             self.h['+'] = h[1]
-            if torch.min(h) <= 0 or torch.max(h) > 10 * torch.max(torch.abs(self.D - self.cutoff)):
-                return torch.inf
             self.b = {'+': 1/self.ρ * self.h['+'], '-': 1/self.ρ * self.h['-']}
             self.__build_matrices()
             self.__build_edgeworth_terms()
@@ -260,6 +257,8 @@ class pdd:
         
         h0 = torch.tensor([self.h['-'], self.h['+']])
         res = minimize(obj, h0, max_iter = 50, method = optim_mode, tol = tol)
+        if torch.min(res.x) <= 0 or torch.max(res.x) > 10 * torch.max(torch.abs(self.D - self.cutoff)):
+            res.success = False
         return res
         
     def fit(self):
@@ -271,35 +270,46 @@ class pdd:
             self.h = {'-': bres.x[0], '+': bres.x[1]}
             status = bres.success
         self.b = {'+': 1/self.ρ * self.h['+'], '-': 1/self.ρ * self.h['-']}
-        self.__build_matrices()
-        self.__get_𝛾()
-        P_bc = self.P_bc['+'] - self.P_bc['-']
-        est = torch.sum(torch.concat([(1/self.n) * self.e_0.T @ P_bc @ self.Y] + [(1/self.n) * self.𝛾[j] * self.e_0.T @ P_bc @ self.W[:, [j]] for j in range(self.q)]))
-        se = torch.sqrt(self.v_rbc['+']**2/(self.n * self.h['+']) + self.v_rbc['-']**2/(self.n * self.h['-']))
-        
-        resid_pos = torch.concat([self.Y - self.R_2['+'] @ self.B_2β['+'][:, [0]]] + [self.W[:, [j]] - self.R_2['+'] @ self.B_2β['+'][:, [j + 1]] for j in range(self.q)], dim=1)
-        resid_neg = torch.concat([self.Y - self.R_2['-'] @ self.B_2β['-'][:, [0]]] + [self.W[:, [j]] - self.R_2['-'] @ self.B_2β['-'][:, [j + 1]] for j in range(self.q)], dim=1)
-        resids = (self.ind['+'] * resid_pos + self.ind['-'] * resid_neg).detach().cpu().numpy()
-        def predict(d) -> np.ndarray:
-            d = torch.as_tensor(d, dtype=self.dtype, device=self.device)
-            if d.ndim == 1: d = d.reshape(-1, 1)
-            Ih, dm, one_m = {'+': 1 / self.h['+'], '-': 1 / self.h['-']}, d - self.cutoff, torch.ones((d.shape[0], 1), dtype=self.dtype, device=self.device)
-            ind = {'+': dm >= 0, '-': dm < 0}
-            r = {'+': torch.cat([one_m, Ih['+'] * dm], dim=1),
-                 '-': torch.cat([one_m, Ih['-'] * dm], dim=1)}
-            Yhat = {'+': (1/self.n) * r['+'] @ self.P_bc['+'] @ self.Y, 
-                    '-': (1/self.n) * r['+'] @ self.P_bc['-'] @ self.Y + torch.sum(torch.concat([(1/self.n) * self.𝛾[j] * self.e_0.T @ P_bc @ self.W[:, [j]] for j in range(self.q)]))}
-            pred = ind['+'] * Yhat['+'] + ind['-'] * Yhat['-']
-            return pred.flatten().detach().cpu().numpy()
+        if status == True:
+            self.__build_matrices()
+            self.__get_𝛾()
+            P_bc = self.P_bc['+'] - self.P_bc['-']
+            est = torch.sum(torch.concat([(1/self.n) * self.e_0.T @ P_bc @ self.Y] + [(1/self.n) * self.𝛾[j] * self.e_0.T @ P_bc @ self.W[:, [j]] for j in range(self.q)]))
+            se = torch.sqrt(self.v_rbc['+']**2/(self.n * self.h['+']) + self.v_rbc['-']**2/(self.n * self.h['-']))
             
-        res = Results(model = 'Placebo Discontinuity Design',
-                      est = est.item(),
-                      se = se.item(),
-                      resid = resids,
-                      bandwidth = {'+': self.h['+'], '-': self.h['-']},
-                      n = self.n,
-                      predict = predict,
-                      status = status)
+            resid_pos = torch.concat([self.Y - self.R_2['+'] @ self.B_2β['+'][:, [0]]] + [self.W[:, [j]] - self.R_2['+'] @ self.B_2β['+'][:, [j + 1]] for j in range(self.q)], dim=1)
+            resid_neg = torch.concat([self.Y - self.R_2['-'] @ self.B_2β['-'][:, [0]]] + [self.W[:, [j]] - self.R_2['-'] @ self.B_2β['-'][:, [j + 1]] for j in range(self.q)], dim=1)
+            resids = (self.ind['+'] * resid_pos + self.ind['-'] * resid_neg).detach().cpu().numpy()
+            def predict(d) -> np.ndarray:
+                d = torch.as_tensor(d, dtype=self.dtype, device=self.device)
+                if d.ndim == 1: d = d.reshape(-1, 1)
+                Ih, dm, one_m = {'+': 1 / self.h['+'], '-': 1 / self.h['-']}, d - self.cutoff, torch.ones((d.shape[0], 1), dtype=self.dtype, device=self.device)
+                ind = {'+': dm >= 0, '-': dm < 0}
+                r = {'+': torch.cat([one_m, Ih['+'] * dm], dim=1),
+                    '-': torch.cat([one_m, Ih['-'] * dm], dim=1)}
+                Yhat = {'+': (1/self.n) * r['+'] @ self.P_bc['+'] @ self.Y, 
+                        '-': (1/self.n) * r['+'] @ self.P_bc['-'] @ self.Y + torch.sum(torch.concat([(1/self.n) * self.𝛾[j] * self.e_0.T @ P_bc @ self.W[:, [j]] for j in range(self.q)]))}
+                pred = ind['+'] * Yhat['+'] + ind['-'] * Yhat['-']
+                return pred.flatten().detach().cpu().numpy()
+                
+            res = Results(model = 'Placebo Discontinuity Design',
+                        est = est.item(),
+                        se = se.item(),
+                        resid = resids,
+                        bandwidth = {'+': self.h['+'], '-': self.h['-']},
+                        n = self.n,
+                        predict = predict,
+                        status = status)
+        else:
+            print("Bandwidth optimization failed.")
+            res = Results(model = 'Placebo Discontinuity Design',
+                        est = 0,
+                        se = 1,
+                        resid = None,
+                        bandwidth = {'+': self.h['+'], '-': self.h['-']},
+                        n = self.n,
+                        predict = None,
+                        status = status)
         return res
 
 
@@ -509,8 +519,6 @@ class rdd:
         def obj(h):
             self.h['-'] = h[0]
             self.h['+'] = h[1]
-            if torch.min(h) <= 0 or torch.max(h) > 10 * torch.max(torch.abs(self.D - self.cutoff)):
-                return torch.inf
             self.b = {'+': 1/self.ρ * self.h['+'], '-': 1/self.ρ * self.h['-']}
             self.__build_matrices()
             self.__build_edgeworth_terms()
@@ -525,6 +533,8 @@ class rdd:
         
         h0 = torch.tensor([self.h['-'], self.h['+']])
         res = minimize(obj, h0, max_iter = 50, method = optim_mode, tol = tol)
+        if torch.min(res.x) <= 0 or torch.max(res.x) > 10 * torch.max(torch.abs(self.D - self.cutoff)):
+            res.success = False
         return res
     
     def fit(self):
@@ -536,32 +546,43 @@ class rdd:
             self.h = {'-': bres.x[0], '+': bres.x[1]}
             status = bres.success
         self.b = {'+': 1/self.ρ * self.h['+'], '-': 1/self.ρ * self.h['-']}
-        self.__build_matrices()
-        P_bc = self.P_bc['+'] - self.P_bc['-']
-        est = (1/self.n) * self.e_0.T @ P_bc @ self.Y
-        se = torch.sqrt(self.v_rbc['+']**2/(self.n * self.h['+']) + self.v_rbc['-']**2/(self.n * self.h['-']))
-        resid_pos = self.Y - self.R_2['+'] @ self.Γ_2_inv['+'] @ (self.R_2['+'].T * self.𝛿['+'].T) / self.n @ self.Y
-        resid_neg = self.Y - self.R_2['-'] @ self.Γ_2_inv['-'] @ (self.R_2['-'].T * self.𝛿['-'].T) / self.n @ self.Y
-        resids = (self.ind['+'] * resid_pos + self.ind['-'] * resid_neg).flatten().detach().cpu().numpy()
-        def predict(d) -> np.ndarray:
-            d = torch.as_tensor(d, dtype=self.dtype, device=self.device)
-            if d.ndim == 1: d = d.reshape(-1, 1)
-            Ih, dm, one_m = {'+': 1 / self.h['+'], '-': 1 / self.h['-']}, d - self.cutoff, torch.ones((d.shape[0], 1), dtype=self.dtype, device=self.device)
-            ind = {'+': dm >= 0, '-': dm < 0}
-            r = {'+': torch.cat([one_m, Ih['+'] * dm], dim=1),
-                 '-': torch.cat([one_m, Ih['-'] * dm], dim=1)}
-            Yhat = {'+': (1/self.n) * r['+'] @ self.P_bc['+'] @ self.Y, 
-                    '-': (1/self.n) * r['-'] @ self.P_bc['-'] @ self.Y}
-            pred = ind['+'] * Yhat['+'] + ind['-'] * Yhat['-']
-            return pred.flatten().detach().cpu().numpy()
-            
-        res = Results(model = 'Regression Discontinuity Design',
-                      est = est.item(),
-                      se = se.item(),
-                      resid = resids,
-                      bandwidth = {'+': self.h['+'], '-': self.h['-']},
-                      n = self.n,
-                      predict = predict,
-                      status = status)
+        if status == True:
+            self.__build_matrices()
+            P_bc = self.P_bc['+'] - self.P_bc['-']
+            est = (1/self.n) * self.e_0.T @ P_bc @ self.Y
+            se = torch.sqrt(self.v_rbc['+']**2/(self.n * self.h['+']) + self.v_rbc['-']**2/(self.n * self.h['-']))
+            resid_pos = self.Y - self.R_2['+'] @ self.Γ_2_inv['+'] @ (self.R_2['+'].T * self.𝛿['+'].T) / self.n @ self.Y
+            resid_neg = self.Y - self.R_2['-'] @ self.Γ_2_inv['-'] @ (self.R_2['-'].T * self.𝛿['-'].T) / self.n @ self.Y
+            resids = (self.ind['+'] * resid_pos + self.ind['-'] * resid_neg).flatten().detach().cpu().numpy()
+            def predict(d) -> np.ndarray:
+                d = torch.as_tensor(d, dtype=self.dtype, device=self.device)
+                if d.ndim == 1: d = d.reshape(-1, 1)
+                Ih, dm, one_m = {'+': 1 / self.h['+'], '-': 1 / self.h['-']}, d - self.cutoff, torch.ones((d.shape[0], 1), dtype=self.dtype, device=self.device)
+                ind = {'+': dm >= 0, '-': dm < 0}
+                r = {'+': torch.cat([one_m, Ih['+'] * dm], dim=1),
+                    '-': torch.cat([one_m, Ih['-'] * dm], dim=1)}
+                Yhat = {'+': (1/self.n) * r['+'] @ self.P_bc['+'] @ self.Y, 
+                        '-': (1/self.n) * r['-'] @ self.P_bc['-'] @ self.Y}
+                pred = ind['+'] * Yhat['+'] + ind['-'] * Yhat['-']
+                return pred.flatten().detach().cpu().numpy()
+                
+            res = Results(model = 'Regression Discontinuity Design',
+                        est = est.item(),
+                        se = se.item(),
+                        resid = resids,
+                        bandwidth = {'+': self.h['+'], '-': self.h['-']},
+                        n = self.n,
+                        predict = predict,
+                        status = status)
+        else:
+            print("Bandwidth optimization failed.")
+            res = Results(model = 'Regression Discontinuity Design',
+            est = 0,
+            se = 1,
+            resid = None,
+            bandwidth = {'+': self.h['+'], '-': self.h['-']},
+            n = self.n,
+            predict = None,
+            status = status)
         return res
     
