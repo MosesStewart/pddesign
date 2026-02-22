@@ -8,15 +8,13 @@ def main():
     outdir = 'temp'
     Y, W, D, Z, U = sim_unbiased(model_0, ndraws = 1000, seed = 1)
     
-    model = pdd(Y, W, D, Z, cutoff = 0.0, device = 'cuda', kernel = 'triangle', bandwidth = [0.20, 0.20])
+    model = pdd(Y, W, D, Z, cutoff = 0.0, device = 'cuda', kernel = 'triangle')
     res_pdd = model.fit()
     print(res_pdd)
     
-    '''
     model = rdd(Y, D, cutoff = 0.0, device = 'cuda', kernel = 'triangle')
     res_rdd = model.fit()
     print(res_rdd)
-    '''
     
     fig, ax = scatterplot(Y, D)
     ax.set_ylabel('Y')

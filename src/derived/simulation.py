@@ -37,7 +37,7 @@ def sim_biased(μx, ndraws = 4000, seed = 10042002):
     V = torch.bernoulli(0.90 * torch.ones((ndraws, 1)), generator = gen)
     
     D =  (U == 1) * ( (V == 1) * torch.log(torch.rand((ndraws, 1), generator = gen))/4 + (V == 0) * (torch.randn((ndraws, 1), generator = gen)/4 - 1/4) ) +\
-         (U == 0) * ( (V == 1) * (-torch.log(torch.rand((ndraws, 1), generator = gen)))/4 + (V == 0) * (torch.randn((ndraws, 1), generator = gen)/4 + 1/4) )
+         (U == 0) * ( (torch.randn((ndraws, 1), generator = gen)/4 + 1/4) )
     Z = 3*U/5 + torch.randn((ndraws, 1), generator = gen)/5 + D/10
     
     W = 3*U/5 + torch.randn((ndraws, 1), generator = gen)/5
@@ -47,10 +47,10 @@ def sim_biased(μx, ndraws = 4000, seed = 10042002):
 def sim_unbiased(μx, ndraws = 4000, seed = 10042002):
     gen = torch.Generator().manual_seed(seed)
     U = torch.bernoulli(0.45 * torch.ones((ndraws, 1)), generator = gen)
-    V = torch.bernoulli(0.25 * torch.ones((ndraws, 1)), generator = gen)
+    V = torch.bernoulli(0.90 * torch.ones((ndraws, 1)), generator = gen)
     
     D =  (U == 1) * ( (V == 1) * torch.log(torch.rand((ndraws, 1), generator = gen))/4 + (V == 0) * (torch.randn((ndraws, 1), generator = gen)/4 - 1/4) ) +\
-         (U == 0) * ( (V == 1) * (-torch.log(torch.rand((ndraws, 1), generator = gen)))/4 + (V == 0) * (torch.randn((ndraws, 1), generator = gen)/4 + 1/4) )
+         (U == 0) * (torch.randn((ndraws, 1), generator = gen)/4 + 1/4)
     Z = 3*U/5 + torch.randn((ndraws, 1), generator = gen)/5 + D/10
     
     W = 3*U/5 + torch.randn((ndraws, 1), generator = gen)/5
