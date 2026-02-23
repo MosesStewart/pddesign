@@ -11,7 +11,7 @@ def main():
     models = {'0': model_0, '1': model_1, '2': model_2, '3': model_3}
     TEs = {'0': 1, '1': 0.550595 - 0.443452, '2': 0.375062 - 3.590380, '3': 0}
     DGPs = {'no_confounding': sim_unbiased, 'confounding': sim_biased}
-    band_nsims = 10
+    band_nsims = 20
     nsims = 400
     
     for dgp in DGPs.keys():

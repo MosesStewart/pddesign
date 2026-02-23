@@ -38,7 +38,7 @@ class pdd:
         self.h = {'+': 3 * torch.std(self.D) * self.n**(-1/4), '-': 3 * torch.std(self.D) * self.n**(-1/4)}
         self.b = {'+': 1/self.ρ * self.h['+'], '-': 1/self.ρ * self.h['-']}
         self.gen = torch.Generator(device = device).manual_seed(seed)
-        self.M = 2 * self.n * int(log(self.n))
+        self.M = min(2 * self.n * int(log(self.n)), max(16000, self.n))
         self.I, self.J = self.__sample_perms(self.n, self.M, self.device, self.gen)
 
     def __sample_perms(self, n: int, nsamples: int, device = 'cpu', gen = torch.Generator()) -> torch.Tensor:
@@ -288,7 +288,7 @@ class pdd:
                 r = {'+': torch.cat([one_m, Ih['+'] * dm], dim=1),
                     '-': torch.cat([one_m, Ih['-'] * dm], dim=1)}
                 Yhat = {'+': (1/self.n) * r['+'] @ self.P_bc['+'] @ self.Y, 
-                        '-': (1/self.n) * r['+'] @ self.P_bc['-'] @ self.Y + torch.sum(torch.concat([(1/self.n) * self.𝛾[j] * self.e_0.T @ P_bc @ self.W[:, [j]] for j in range(self.q)]))}
+                        '-': (1/self.n) * r['+'] @ self.P_bc['-'] @ self.Y - torch.sum(torch.concat([(1/self.n) * self.𝛾[j] * self.e_0.T @ P_bc @ self.W[:, [j]] for j in range(self.q)]))}
                 pred = ind['+'] * Yhat['+'] + ind['-'] * Yhat['-']
                 return pred.flatten().detach().cpu().numpy()
                 
