@@ -8,7 +8,7 @@ def main():
     outdir = 'temp'
     Y, W, D, Z, U = sim_unbiased(model_0, ndraws = 10000, seed = 1)
     
-    model = pdd(Y, W, D, Z, cutoff = 0.0, device = 'cuda', kernel = 'triangle')
+    model = pdd(Y, W, D, Z, cutoff = 0.0, device = 'cpu', kernel = 'triangle')
     res_pdd = model.fit()
     print(res_pdd)
     print(res_pdd.bandwidth)
