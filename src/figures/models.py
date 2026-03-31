@@ -3,9 +3,9 @@ from matplotlib import pyplot as plt
 sys.path.append('/'.join(re.split('/|\\\\', os.path.dirname( __file__ ))[0:-1]))
 from derived.simulation import *
 
-SMALL_SIZE = 18
-MEDIUM_SIZE = 20
-BIGGER_SIZE = 22
+SMALL_SIZE = 20
+MEDIUM_SIZE = 22
+BIGGER_SIZE = 24
 
 plt.rc('font', size=SMALL_SIZE)          # controls default text sizes
 plt.rc('axes', titlesize=SMALL_SIZE)     # fontsize of the axes title

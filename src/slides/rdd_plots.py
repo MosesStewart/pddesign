@@ -4,9 +4,9 @@ sys.path.append('/'.join(re.split('/|\\\\', os.path.dirname( __file__ ))[0:-1]))
 from rddesign.main import *
 from derived.simulation import *
 
-SMALL_SIZE = 14
-MEDIUM_SIZE = 16
-BIGGER_SIZE = 18
+SMALL_SIZE = 17
+MEDIUM_SIZE = 19
+BIGGER_SIZE = 21
 
 plt.rc('font', size=SMALL_SIZE)          # controls default text sizes
 plt.rc('axes', titlesize=SMALL_SIZE)     # fontsize of the axes title
@@ -34,7 +34,7 @@ def sim_s(μx, ndraws = 4000, seed = 10042002):
 
 def main():
     outdir = 'output/slides'
-    Y, W, D, Z, U = sim_s(model_s, ndraws = 4000, seed = 5)
+    Y, W, D, Z, U = sim_s(model_s, ndraws = 4000, seed = 13)
     
     model = rdd(Y, D, cutoff = 0.0, device = 'cuda', kernel = 'triangle', bandwidth = [0.5, 0.5])
     res_rdd = model.fit()
@@ -45,17 +45,21 @@ def main():
     print(res_pdd)
     
     fig, ax = plot_res(res_rdd, res_pdd, Y, D, model_s)    
+    ax.set_ylabel('$Y$ (Firm productivity)')
+    ax.set_xlabel('$D$ (Num. workers)')
     fig.savefig(f'{outdir}/full_plot.pdf', transparent = True, bbox_inches="tight")
     
     fig, ax = plot_rdd(res_rdd, Y, D)    
-    ax.set_ylabel('$\\hat{\\mu}_{0, y}(d) = \\hat{\\mathbb{E}}[Y \\mid D = d]$')
+    ax.set_ylabel('$Y$ (Firm productivity)')
+    ax.set_xlabel('$D$ (Num. workers)')
     fig.savefig(f'{outdir}/rdd_plot.pdf', transparent = True, bbox_inches="tight")
     
     model = rdd(W, D, cutoff = 0.0, device = 'cuda', kernel = 'triangle', bandwidth = [0.5, 0.5])
     res_w_rdd = model.fit()
     
     fig, ax = plot_rdd(res_w_rdd, W, D)    
-    ax.set_ylabel('$\\hat{\\mu}_{0, w}(d) = \\hat{\\mathbb{E}}[W \\mid D = d]$')
+    ax.set_ylabel('$W$ (Long-term rent)')
+    ax.set_xlabel('$D$ (Num. workers)')
     fig.savefig(f'{outdir}/cont_test.pdf', transparent = True, bbox_inches="tight")
 
 def plot_res(rres, pres, Y, D, fn):
@@ -79,8 +83,6 @@ def plot_res(rres, pres, Y, D, fn):
     ax.plot(x2, pres.predict(x2) + pres.right_ci - pres.est, color = '#FF6961', linewidth = 1, alpha = 0.55)
     ax.vlines(x = 0, ymin=-1.5, ymax=1.5, color='#000000', alpha = 0.5, linestyle = (0, (5, 5)))
     ax.legend(loc = 'upper left')
-    ax.set_xlabel('D')
-    ax.set_ylabel('$\\tilde{\\mu}_{0}(D)$')
     ax.set_xlim(-1, 1)
     ax.set_ylim(-0.8, 0.8)
     ax.spines[['right', 'top']].set_visible(False)
@@ -99,7 +101,6 @@ def plot_rdd(res, Y, D):
     ax.plot(x2, res.predict(x2) + res.right_ci - res.est, color = '#8DD2DB', linewidth = 1, alpha = 0.4)
     ax.vlines(x = 0, ymin=-1.5, ymax=1.5, color='#000000', alpha = 0.7, linestyles='dashed')
     ax.legend(loc = 'upper left')
-    ax.set_xlabel('D')
     ax.set_xlim(-1, 1)
     ax.set_ylim(-0.8, 0.8)
     ax.spines[['right', 'top']].set_visible(False)
