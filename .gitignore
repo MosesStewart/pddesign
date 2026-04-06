@@ -8,6 +8,8 @@ __pycache__/
 *.so
 *~
 venv/
+src/temp/
+temp/
 
 # due to using nox and pytest
 .nox
