@@ -26,8 +26,8 @@ class Results():
         self.n = n
         self.predict = predict
         self.status = status
-        self.left_ci = norm.ppf(0.025) * self.se + self.est
-        self.right_ci = norm.ppf(0.975) * self.se + self.est
+        self.left_ci = norm.ppf(0.05) * self.se + self.est
+        self.right_ci = norm.ppf(0.95) * self.se + self.est
         if est > 0:
             self.pvalue = 1 - norm.cdf(est/se)
         if est <= 0:
@@ -49,7 +49,7 @@ class Results():
                     f'Neg. Bandwidth:'.ljust(20) + f'{self.bandwidth['-']:.3f}'.rjust(28) + '\n'
         output += ''.center(length, '=') + '\n'
         output += ''.center(40) + 'coef'.rjust(10) + 'std err'.rjust(10) + 't'.rjust(10) +\
-              'p_1s'.rjust(10) + '[0.025'.rjust(10) + '0.975]'.rjust(10) + '\n'
+              'p_1s'.rjust(10) + '[0.05'.rjust(10) + '0.95]'.rjust(10) + '\n'
         output += ''.center(length, '-') + '\n'
         output += 'Treatment'.ljust(40) + f'{self.est:.3f}'.rjust(10) + f'{self.se:.3f}'.rjust(10) +\
               f'{self.est/self.se:.3f}'.rjust(10) + f'{self.pvalue:.3f}'.rjust(10) +\

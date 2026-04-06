@@ -1,4 +1,4 @@
-import numpy as np, pandas as pd, warnings
+import numpy as np, pandas as pd
 
 def main():
     indir = 'src/raw'
@@ -7,7 +7,7 @@ def main():
     df_out = transform_data(df)
     df_out.to_csv(f'{outdir}/clean_data.csv', index = False)
 
-def transform_data(df):
+def transform_data(df: pd.DataFrame) -> pd.DataFrame:
     
     aged = df.loc[:, 'aged'].values
     death = np.where(aged != 1, 1, 0)
@@ -25,7 +25,7 @@ def transform_data(df):
                           index = df.index)
     return df_out
     
-def clean_data(indir, files):
+def clean_data(indir: str, files: list) -> pd.DataFrame:
     dfs = []
     for file in files:
         df_raw = pd.read_csv(f'{indir}/{file}.csv')
@@ -35,7 +35,7 @@ def clean_data(indir, files):
         df = df.dropna(axis = 0).reset_index(drop=True)
         
         wgt = df.loc[:, 'brthwgt'].values
-        close_wgt = np.where(np.abs(wgt - 1500) <= 50, True, False)
+        close_wgt = np.where(np.abs(wgt - 1500) <= 100, True, False)
         df = df.loc[close_wgt, :].reset_index(drop=True)
         
         meduc = df.loc[:, 'meduc'].values
@@ -56,5 +56,4 @@ def clean_data(indir, files):
     return df
 
 if __name__ == '__main__':
-    warnings.filterwarnings('ignore')
     main()
