@@ -44,6 +44,7 @@ def transform_data(df5: pd.DataFrame, df4: pd.DataFrame) -> pd.DataFrame:
     }, index=df5.index)
 
     df_out = df_out.dropna(axis = 0).reset_index(drop=True)
+    #df_out = df_out.loc[df_out.index.repeat(df_out['classize'].astype(int))].reset_index(drop=True)
     return df_out
 
 

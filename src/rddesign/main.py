@@ -38,7 +38,7 @@ class pdd:
         self.h = {'+': 3 * torch.std(self.D) * self.n**(-1/4), '-': 3 * torch.std(self.D) * self.n**(-1/4)}
         self.b = {'+': 1/self.ρ * self.h['+'], '-': 1/self.ρ * self.h['-']}
         self.gen = torch.Generator(device = device).manual_seed(seed)
-        self.M = min(2 * self.n * int(log(self.n)), max(16000, self.n))
+        self.M = min(2 * self.n * int(log(self.n)), max(self.n, 50000))
         self.I, self.J = self.__sample_perms(self.n, self.M, self.device, self.gen)
 
     def __sample_perms(self, n: int, nsamples: int, device = 'cpu', gen = torch.Generator()) -> torch.Tensor:
@@ -340,7 +340,7 @@ class rdd:
         self.h = {'-': 3 * torch.std(self.D) * self.n**(-1/4), '+': 3 * torch.std(self.D) * self.n**(-1/4)}
         self.b = {'+': 1/self.ρ * self.h['+'], '-': 1/self.ρ * self.h['-']}
         self.gen = torch.Generator(device = device).manual_seed(seed)
-        self.M = 2 * self.n * int(log(self.n))
+        self.M = min(2 * self.n * int(log(self.n)), max(self.n, 50000))
         self.I, self.J = self.__sample_perms(self.n, self.M, self.device, self.gen)
 
     def __sample_perms(self, n: int, nsamples: int, device = 'cpu', gen = torch.Generator()) -> torch.Tensor:

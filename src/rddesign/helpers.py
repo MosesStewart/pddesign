@@ -26,8 +26,8 @@ class Results():
         self.n = n
         self.predict = predict
         self.status = status
-        self.left_ci = norm.ppf(0.05) * self.se + self.est
-        self.right_ci = norm.ppf(0.95) * self.se + self.est
+        self.left_ci = norm.ppf(0.025) * self.se + self.est
+        self.right_ci = norm.ppf(0.975) * self.se + self.est
         if est > 0:
             self.pvalue = 1 - norm.cdf(est/se)
         if est <= 0:

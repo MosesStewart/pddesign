@@ -13,6 +13,9 @@ def main():
     W = df.loc[:, 'avg4_math'].values
     Z = df.loc[:, 'instrument'].values
 
+    true_n = np.sum(D)
+    n_ratio = np.sqrt(D.shape[0]/true_n)
+    
     model = rdd(Y, D, cutoff = 40, kernel = 'epan', bandwidth = [20, 20])
     res_rdd = model.fit()
     print(res_rdd)
@@ -21,35 +24,35 @@ def main():
     res_pdd = model.fit()
     print(res_pdd)
     
-    fig, ax = plot_res(res_rdd, res_pdd, Y, D)    
+    fig, ax = plot_res(res_rdd, res_pdd, Y, D, adjust = np.sqrt(n_ratio))    
     fig.savefig(f'{outdir}/results.pdf', transparent = True, bbox_inches="tight")
     
     model = rdd(W, D, cutoff = 40, kernel = 'epan', bandwidth = [20, 20])
     res_rdd = model.fit()
     print(res_rdd)
     
-    fig, ax = plot_rdd(res_rdd, W, D)
+    fig, ax = plot_rdd(res_rdd, W, D, adjust = np.sqrt(n_ratio))
     ax.set_ylabel('$\\mathbb{E}\\left[W \\mid D = d\\right]$')
     ax.set_ylim(58, 75)
     fig.savefig(f'{outdir}/w_4th_test.pdf', transparent = True, bbox_inches="tight")
 
-def plot_res(rres, pres, Y, D):
+def plot_res(rres, pres, Y, D, adjust = 1):
     x1 = np.linspace(35, 39.99, 200)
     x2 = np.linspace(40, 45, 200)
     fig, ax = plt.subplots()
     ax.scatter(D, Y, s = 5, c = "#F0F0F0")
     ax.plot(x1, rres.predict(x1), color = "#8DD2DB", label = 'RDD', linewidth = 2)
-    ax.plot(x1, rres.predict(x1) + (rres.left_ci - rres.est)/2, color = "#8DD2DB", linewidth = 1, alpha = 0.55)
-    ax.plot(x1, rres.predict(x1) + (rres.right_ci - rres.est)/2, color = '#8DD2DB', linewidth = 1, alpha = 0.55)
+    ax.plot(x1, rres.predict(x1) + adjust * (rres.left_ci - rres.est)/2, color = "#8DD2DB", linewidth = 1, alpha = 0.55)
+    ax.plot(x1, rres.predict(x1) + adjust * (rres.right_ci - rres.est)/2, color = '#8DD2DB', linewidth = 1, alpha = 0.55)
     ax.plot(x1, pres.predict(x1), color = '#FF6961', label = 'PDD', linewidth = 2)
-    ax.plot(x1, pres.predict(x1) + (pres.left_ci - pres.est)/2, color = '#FF6961', linewidth = 1, alpha = 0.55)
-    ax.plot(x1, pres.predict(x1) + (pres.right_ci - pres.est)/2, color = '#FF6961', linewidth = 1, alpha = 0.55)
+    ax.plot(x1, pres.predict(x1) + adjust * (pres.left_ci - pres.est)/2, color = '#FF6961', linewidth = 1, alpha = 0.55)
+    ax.plot(x1, pres.predict(x1) + adjust * (pres.right_ci - pres.est)/2, color = '#FF6961', linewidth = 1, alpha = 0.55)
     ax.plot(x2, rres.predict(x2), color = '#8DD2DB', linewidth = 2)
-    ax.plot(x2, rres.predict(x2) + (rres.left_ci - rres.est)/2, color = '#8DD2DB', linewidth = 1, alpha = 0.55)
-    ax.plot(x2, rres.predict(x2) + (rres.right_ci - rres.est)/2, color = '#8DD2DB', linewidth = 1, alpha = 0.55)
+    ax.plot(x2, rres.predict(x2) + adjust * (rres.left_ci - rres.est)/2, color = '#8DD2DB', linewidth = 1, alpha = 0.55)
+    ax.plot(x2, rres.predict(x2) + adjust * (rres.right_ci - rres.est)/2, color = '#8DD2DB', linewidth = 1, alpha = 0.55)
     ax.plot(x2, pres.predict(x2), color = '#FF6961', linewidth = 2)
-    ax.plot(x2, pres.predict(x2) + (pres.left_ci - pres.est)/2, color = '#FF6961', linewidth = 1, alpha = 0.55)
-    ax.plot(x2, pres.predict(x2) + (pres.right_ci - pres.est)/2, color = '#FF6961', linewidth = 1, alpha = 0.55)
+    ax.plot(x2, pres.predict(x2) + adjust * (pres.left_ci - pres.est)/2, color = '#FF6961', linewidth = 1, alpha = 0.55)
+    ax.plot(x2, pres.predict(x2) + adjust * (pres.right_ci - pres.est)/2, color = '#FF6961', linewidth = 1, alpha = 0.55)
     ax.vlines(x = 1500, ymin=-0.1, ymax=1.05, color='#000000', alpha = 0.5, linestyle = (0, (5, 5)))
     ax.legend(loc = 'upper left')
     ax.set_xlabel('D')
@@ -59,17 +62,17 @@ def plot_res(rres, pres, Y, D):
     ax.spines[['right', 'top']].set_visible(False)
     return fig, ax
 
-def plot_rdd(res, Y, D):
+def plot_rdd(res, Y, D, adjust = 1):
     x1 = np.linspace(35, 39.99, 200)
     x2 = np.linspace(40, 45, 200)
     fig, ax = plt.subplots()
     ax.scatter(D, Y, s = 5, c = '#dddddd')
     ax.plot(x1, res.predict(x1), color = '#FF6961', label = 'RDD', linewidth = 2)
-    ax.plot(x1, res.predict(x1) + (res.left_ci - res.est)/2, color = '#FF6961', linewidth = 1, alpha = 0.4)
-    ax.plot(x1, res.predict(x1) + (res.right_ci - res.est)/2, color = '#FF6961', linewidth = 1, alpha = 0.4)
+    ax.plot(x1, res.predict(x1) + adjust * (res.left_ci - res.est)/2, color = '#FF6961', linewidth = 1, alpha = 0.4)
+    ax.plot(x1, res.predict(x1) + adjust * (res.right_ci - res.est)/2, color = '#FF6961', linewidth = 1, alpha = 0.4)
     ax.plot(x2, res.predict(x2), color = '#FF6961', linewidth = 2)
-    ax.plot(x2, res.predict(x2) + (res.left_ci - res.est)/2, color = '#FF6961', linewidth = 1, alpha = 0.4)
-    ax.plot(x2, res.predict(x2) + (res.right_ci - res.est)/2, color = '#FF6961', linewidth = 1, alpha = 0.4)
+    ax.plot(x2, res.predict(x2) + adjust * (res.left_ci - res.est)/2, color = '#FF6961', linewidth = 1, alpha = 0.4)
+    ax.plot(x2, res.predict(x2) + adjust * (res.right_ci - res.est)/2, color = '#FF6961', linewidth = 1, alpha = 0.4)
     ax.vlines(x = 1500, ymin=-0.1, ymax=1.05, color='#000000', alpha = 0.7, linestyles='dashed')
     ax.legend(loc = 'upper left')
     ax.set_xlabel('D')
