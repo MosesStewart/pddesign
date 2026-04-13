@@ -17,17 +17,26 @@ def epanechnikov_kernel(u: torch.Tensor) -> torch.Tensor:
     return torch.where(a <= 1.0, (3/4) * (1 - a**2), torch.zeros_like(a)).to(torch.float32)
 
 class Results():
-    def __init__(self, model, est, se, resid, bandwidth, n, predict, status):
+    def __init__(self, model, est, est_pos, est_neg, se, se_pos, se_neg, resid, bandwidth, n, predict, status):
         self.model = model
         self.est = est
+        self.est_pos = est_pos
+        self.est_neg = est_neg
         self.se = se
+        self.se_pos = se_pos
+        self.se_neg = se_neg
         self.resid = resid
         self.bandwidth = bandwidth
         self.n = n
         self.predict = predict
         self.status = status
         self.left_ci = norm.ppf(0.025) * self.se + self.est
+        self.left_ci_pos = norm.ppf(0.025) * self.se_pos + self.est_pos
+        self.left_ci_neg = norm.ppf(0.025) * self.se_neg + self.est_neg
         self.right_ci = norm.ppf(0.975) * self.se + self.est
+        self.right_ci_pos = norm.ppf(0.975) * self.se_pos + self.est_pos
+        self.right_ci_neg = norm.ppf(0.975) * self.se_neg + self.est_neg
+        
         if est > 0:
             self.pvalue = 1 - norm.cdf(est/se)
         if est <= 0:
