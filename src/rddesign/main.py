@@ -36,6 +36,7 @@ class pdd:
         else:
             self.custom_bandwidth = None
         self.h = {'+': 3 * torch.std(self.D) * self.n**(-1/4), '-': 3 * torch.std(self.D) * self.n**(-1/4)}
+        self.logh = {'+': torch.log(self.h['+']), '-': torch.log(self.h['-'])}
         self.b = {'+': 1/self.ρ * self.h['+'], '-': 1/self.ρ * self.h['-']}
         self.gen = torch.Generator(device = device).manual_seed(seed)
         self.M = min(2 * self.n * int(log(self.n)), max(self.n, 50000))
@@ -236,9 +237,9 @@ class pdd:
         return 𝜂_bc[0, 0]
     
     def __get_bandwidth(self, optim_mode = 'newton-cg', tol = 0.001):
-        def obj(h):
-            self.h['-'] = h[0]
-            self.h['+'] = h[1]
+        def obj(logh):
+            self.h['-'] = torch.exp(logh[0])
+            self.h['+'] = torch.exp(logh[1])
             self.b = {'+': 1/self.ρ * self.h['+'], '-': 1/self.ρ * self.h['-']}
             self.__build_matrices()
             self.__build_edgeworth_terms()
@@ -255,8 +256,8 @@ class pdd:
                       self.h['-']**3 * torch.sum(torch.stack([𝜂_bc['-'][j] * q_3['-'][j] for j in range(self.q + 1)])) )/self.n**(3/4))**2
             return loss
         
-        h0 = torch.tensor([self.h['-'], self.h['+']])
-        res = minimize(obj, h0, max_iter = 50, method = optim_mode, tol = tol)
+        logh0 = torch.tensor([self.logh['-'], self.logh['+']])
+        res = minimize(obj, logh0, max_iter = 50, method = optim_mode, tol = tol)
         if torch.min(res.x) <= 0 or torch.max(res.x) > 10 * torch.max(torch.abs(self.D - self.cutoff)):
             res.success = False
         return res
@@ -355,6 +356,7 @@ class rdd:
         else:
             self.custom_bandwidth = None
         self.h = {'-': 3 * torch.std(self.D) * self.n**(-1/4), '+': 3 * torch.std(self.D) * self.n**(-1/4)}
+        self.logh = {'-': torch.log(self.h['-']), '+': torch.log(self.h['+'])}
         self.b = {'+': 1/self.ρ * self.h['+'], '-': 1/self.ρ * self.h['-']}
         self.gen = torch.Generator(device = device).manual_seed(seed)
         self.M = min(2 * self.n * int(log(self.n)), max(self.n, 50000))
@@ -533,9 +535,9 @@ class rdd:
         return 𝜂_bc[0, 0]
     
     def __get_bandwidth(self, optim_mode = 'newton-cg', tol = 0.001):
-        def obj(h):
-            self.h['-'] = h[0]
-            self.h['+'] = h[1]
+        def obj(logh):
+            self.h['-'] = torch.exp(logh[0])
+            self.h['+'] = torch.exp(logh[1])
             self.b = {'+': 1/self.ρ * self.h['+'], '-': 1/self.ρ * self.h['-']}
             self.__build_matrices()
             self.__build_edgeworth_terms()
@@ -548,10 +550,8 @@ class rdd:
                 (( (1/(self.n * self.h['-'])) * q_1['-'] + self.n * self.h['-']**7 * 𝜂_bc['-']**2 * q_2['-'] + self.h['-']**3 * 𝜂_bc['-'] * q_3['-'] )/self.n**(3/4))**2
             return loss
         
-        h0 = torch.tensor([self.h['-'], self.h['+']])
-        res = minimize(obj, h0, max_iter = 50, method = optim_mode, tol = tol)
-        if torch.min(res.x) <= 0 or torch.max(res.x) > 10 * torch.max(torch.abs(self.D - self.cutoff)):
-            res.success = False
+        logh0 = torch.tensor([self.logh['-'], self.logh['+']])
+        res = minimize(obj, logh0, max_iter = 50, method = optim_mode, tol = tol)
         return res
     
     def fit(self):

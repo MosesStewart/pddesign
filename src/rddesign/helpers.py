@@ -65,3 +65,7 @@ class Results():
               f'{self.left_ci:.3f}'.rjust(10) + f'{self.right_ci:.3f}'.rjust(10) + '\n'
         output += ''.center(length, '=') + '\n'
         return output
+
+class Failure():
+    def __init__(self):
+        self.success = False
