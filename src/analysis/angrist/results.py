@@ -46,6 +46,7 @@ def main():
     
     fig, ax = plot_rdd(res_rdd, W, D)
     ax.set_ylabel('$\\mathbb{E}\\left[W \\mid D = d\\right]$')
+    #ax.set_title('$\\hat{\\tau}_{\\text{rdd}}^{w} = %.2f \\quad (%.2f, %.2f)$' % (res_rdd.est, res_rdd.left_ci, res_rdd.right_ci))
     ax.set_ylim(62, 68)
     fig.savefig(f'{outdir}/w_4th_test.pdf', transparent = True, bbox_inches="tight")
 
@@ -124,8 +125,8 @@ def plot_rdd(res, Y, D):
     cutoff = 40
     bw_neg = res.bandwidth['-']
     bw_pos = res.bandwidth['+']
-    x1 = np.linspace(cutoff - bw_neg, cutoff - 0.2, 200)
-    x2 = np.linspace(cutoff + 0.2,   cutoff + bw_pos, 200)
+    x1 = np.linspace(cutoff - bw_neg, cutoff - 0.4, 200)
+    x2 = np.linspace(cutoff + 0.4,   cutoff + bw_pos, 200)
 
     fig, ax = plt.subplots()
     #ax.scatter(D, Y, s=5, c='#dddddd')
@@ -135,7 +136,7 @@ def plot_rdd(res, Y, D):
     ax.axvline(cutoff - bw_neg, color='#cccccc', linewidth=0.8, linestyle=':', zorder=4)
     ax.axvline(cutoff + bw_pos, color='#cccccc', linewidth=0.8, linestyle=':', zorder=4)
 
-    _add_side_brackets(ax, res, color='#7393b3', x_offset_neg=-0.2, x_offset_pos=0.2)
+    _add_side_brackets(ax, res, color='#7393b3', x_offset_neg=-0.4, x_offset_pos=0.4)
 
     ax.vlines(x=cutoff, ymin=50, ymax=75, color='#000000', alpha=0.3, linestyle=(0, (8, 8)))
     ax.legend(loc='upper left')

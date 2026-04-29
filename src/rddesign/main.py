@@ -47,7 +47,7 @@ class pdd:
         N = n * (n - 1)
         nsamples = min(nsamples, N)
 
-        k = torch.randperm(N, device = device, dtype = torch.int32, generator = gen)[:nsamples] 
+        k = torch.randperm(N, device = device, dtype = torch.int64, generator = gen)[:nsamples] 
         I = k // (n - 1)
         jp = k % (n - 1)
         J = jp + (jp >= I).to(torch.int32)
@@ -367,7 +367,7 @@ class rdd:
         N = n * (n - 1)
         nsamples = min(nsamples, N)
 
-        k = torch.randperm(N, device = device, dtype = torch.int32, generator = gen)[:nsamples] 
+        k = torch.randperm(N, device = device, dtype = torch.int64, generator = gen)[:nsamples] 
         I = k // (n - 1)
         jp = k % (n - 1)
         J = jp + (jp >= I).to(torch.int32)

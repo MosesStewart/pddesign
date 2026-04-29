@@ -1,4 +1,4 @@
-import numpy as np, pandas as pd
+import numpy as np, pandas as pd, warnings
 
 def main():
     indir = 'src/raw'
@@ -35,7 +35,7 @@ def clean_data(indir: str, files: list) -> pd.DataFrame:
         df = df.dropna(axis = 0).reset_index(drop=True)
         
         wgt = df.loc[:, 'brthwgt'].values
-        close_wgt = np.where(np.abs(wgt - 1500) <= 100, True, False)
+        close_wgt = np.where(np.abs(wgt - 1500) <= 55, True, False)
         df = df.loc[close_wgt, :].reset_index(drop=True)
         
         meduc = df.loc[:, 'meduc'].values
@@ -56,4 +56,5 @@ def clean_data(indir: str, files: list) -> pd.DataFrame:
     return df
 
 if __name__ == '__main__':
+    warnings.filterwarnings('ignore')
     main()
