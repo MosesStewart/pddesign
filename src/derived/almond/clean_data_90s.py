@@ -3,15 +3,15 @@ import numpy as np, pandas as pd, warnings
 def main():
     indir = 'src/raw'
     outdir = 'output/derived/almond'
-    df = clean_data(indir, ['linkco%sus_den' % year for year in range(1995, 2003)])
+    df = clean_data(indir, ['linkco%sus_den' % year for year in range(1999, 2003)])
     df_out = transform_data(df)
-    df_out.to_csv(f'{outdir}/clean_data_old.csv', index = False)
+    df_out.to_csv(f'{outdir}/clean_data_90s.csv', index = False)
 
 def transform_data(df: pd.DataFrame) -> pd.DataFrame:
     aged = df.loc[:, 'aged'].values
     death = np.where(aged <= 365, 1, 0)
     educ = df.loc[:, 'dmeduc'].values
-    is_educ = np.where(educ >= 13, 1, 0)
+    is_educ = np.where(educ >= 12, 1, 0)
     mrace = df.loc[:, 'mrace'].values
     is_white = np.where(mrace == 1, 1, 0)
     dob = df.loc[:, 'weekdayb'].values
@@ -26,7 +26,6 @@ def clean_data(indir: str, files: list) -> pd.DataFrame:
     for file in files:
         df_raw = pd.read_csv(f'{indir}/{file}.csv')
         data_vars = ['aged', 'dbirwt', 'dmeduc', 'mrace', 'weekdayb']
-        print(np.all([var in df_raw.columns for var in data_vars]))
         df_raw.loc[:, 'aged'] = df_raw.loc[:, 'aged'].fillna(999)
         
         df = df_raw.loc[:, data_vars]

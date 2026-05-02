@@ -25,30 +25,38 @@ def main():
     D = df.loc[:, 'c_size'].values
     W = df.loc[:, 'avg4_math'].values
     Z = df.loc[:, 'instrument'].values
-
-    true_n = np.sum(D)
-    n_ratio = D.shape[0]/true_n
+    hs = [10, 11, 12]
     
-    model = angrist_rdd(Y, D, cutoff = 40, kernel = 'epan', bandwidth = [13, 13], weights = D, varbound = 2500, n_adjust = n_ratio)
-    res_rdd = model.fit()
-    print(res_rdd)
-    
-    model = angrist_pdd(Y, W, D, Z, cutoff = 40, kernel = 'epan', bandwidth = [13, 13], weights = D, varbound = 2500, n_adjust = n_ratio)
-    res_pdd = model.fit()
-    print(res_pdd)
-    
-    fig, ax = plot_res(res_rdd, res_pdd, Y, D)    
-    fig.savefig(f'{outdir}/results.pdf', transparent = True, bbox_inches="tight")
-    
-    model = angrist_rdd(W, D, cutoff = 40, kernel = 'epan', bandwidth = [13, 13], weights = D, varbound = 2500, n_adjust = n_ratio)
-    res_rdd = model.fit()
-    print(res_rdd)
-    
-    fig, ax = plot_rdd(res_rdd, W, D)
-    ax.set_ylabel('$\\mathbb{E}\\left[W \\mid D = d\\right]$')
-    #ax.set_title('$\\hat{\\tau}_{\\text{rdd}}^{w} = %.2f \\quad (%.2f, %.2f)$' % (res_rdd.est, res_rdd.left_ci, res_rdd.right_ci))
-    ax.set_ylim(62, 68)
-    fig.savefig(f'{outdir}/w_4th_test.pdf', transparent = True, bbox_inches="tight")
+    for h in hs:
+        with open(f'{outdir}/summary_{int(h)}.txt', 'w') as summary:
+            true_n = np.sum(D)
+            n_ratio = D.shape[0]/true_n
+            
+            model = angrist_rdd(Y, D, cutoff = 40, kernel = 'epan', bandwidth = [h, h], weights = D, varbound = 2500, n_adjust = n_ratio)
+            res_rdd = model.fit()
+            summary.write('\nY ~ 5th math score')
+            summary.write(str(res_rdd))
+            
+            model = angrist_pdd(Y, W, D, Z, cutoff = 40, kernel = 'epan', bandwidth = [h, h], weights = D, varbound = 2500, n_adjust = n_ratio)
+            res_pdd = model.fit()
+            summary.write('\nY ~ 5th math score')
+            summary.write(str(res_pdd))
+            
+            fig, ax = plot_res(res_rdd, res_pdd, Y, D)    
+            fig.savefig(f'{outdir}/results_{int(h)}.pdf', transparent = True, bbox_inches="tight")
+            
+            model = angrist_rdd(W, D, cutoff = 40, kernel = 'epan', bandwidth = [h, h], weights = D, varbound = 2500, n_adjust = n_ratio)
+            res_rdd = model.fit()
+            summary.write('\nW ~ 4th math score')
+            summary.write(str(res_rdd))
+            
+            fig, ax = plot_rdd(res_rdd, W, D)
+            ax.set_ylabel('$\\mathbb{E}\\left[W \\mid D = d\\right]$')
+            #ax.set_title('$\\hat{\\tau}_{\\text{rdd}}^{w} = %.2f \\quad (%.2f, %.2f)$' % (res_rdd.est, res_rdd.left_ci, res_rdd.right_ci))
+            ax.set_ylim(62, 68)
+            fig.savefig(f'{outdir}/w_4th_test_{int(h)}.pdf', transparent = True, bbox_inches="tight")
+            
+            summary.close()
 
 def _add_side_brackets(ax, res, color, x_offset_neg=-0.2, x_offset_pos=0.2,
                        show_pos=True, show_neg=True,
@@ -95,14 +103,15 @@ def plot_res(rres, pres, Y, D):
     x2 = np.linspace(cutoff + 0.3,   cutoff + bw_pos, 200)  # start at pos bracket
 
     fig, ax = plt.subplots()
+    ax.scatter(D, Y, s=5, c='#eeeeee')
     ax.plot(x1, rres.predict(x1), color='#7393b3', label='RDD', linewidth=2)
     ax.plot(x2, rres.predict(x2), color='#7393b3', linewidth=2)
     ax.plot(x1, pres.predict(x1), color='#424952', label='PDD', linewidth=2)
     ax.plot(x2, pres.predict(x2) + 0.2, color='#424952', linewidth=2)
 
     # Bandwidth marker lines
-    ax.axvline(cutoff - bw_neg, color='#cccccc', linewidth=0.8, linestyle=':', zorder=4)
-    ax.axvline(cutoff + bw_pos, color='#cccccc', linewidth=0.8, linestyle=':', zorder=4)
+    ax.axvline(cutoff - bw_neg, color='#bbbbbb', linewidth=0.8, linestyle=':', zorder=4)
+    ax.axvline(cutoff + bw_pos, color='#bbbbbb', linewidth=0.8, linestyle=':', zorder=4)
 
     # Pos brackets: both on right side, staggered
     _add_side_brackets(ax, rres, color='#7393b3', x_offset_pos=0.3,  show_neg=False)
@@ -129,12 +138,12 @@ def plot_rdd(res, Y, D):
     x2 = np.linspace(cutoff + 0.4,   cutoff + bw_pos, 200)
 
     fig, ax = plt.subplots()
-    #ax.scatter(D, Y, s=5, c='#dddddd')
+    ax.scatter(D, Y, s=5, c='#eeeeee')
     ax.plot(x1, res.predict(x1), color='#7393b3', label='RDD', linewidth=2)
     ax.plot(x2, res.predict(x2), color='#7393b3', linewidth=2)
 
-    ax.axvline(cutoff - bw_neg, color='#cccccc', linewidth=0.8, linestyle=':', zorder=4)
-    ax.axvline(cutoff + bw_pos, color='#cccccc', linewidth=0.8, linestyle=':', zorder=4)
+    ax.axvline(cutoff - bw_neg, color='#bbbbbb', linewidth=0.8, linestyle=':', zorder=4)
+    ax.axvline(cutoff + bw_pos, color='#bbbbbb', linewidth=0.8, linestyle=':', zorder=4)
 
     _add_side_brackets(ax, res, color='#7393b3', x_offset_neg=-0.4, x_offset_pos=0.4)
 

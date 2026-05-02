@@ -94,7 +94,7 @@ class pdd:
         self.Σ = {'+': torch.stack([torch.diag((self.σ['+'][:, j]**2)) for j in range(self.q + 1)], dim = 0), # (q + 1, n, n)
                   '-': torch.stack([torch.diag((self.σ['-'][:, j]**2)) for j in range(self.q + 1)], dim = 0),}
         self.P_bc = {'+': self.Γ_1_inv['+'] @ (self.R_1['+'].T * self.𝜔['+'].T) - (self.h['+'] / self.b['+'])**2 * self.Γ_1_inv['+'] @ self.Λ_1['+'] @ self.e_2.T @ self.Γ_2_inv['+'] @ (self.R_2['+'].T * self.𝛿['+'].T), 
-                '-': self.Γ_1_inv['-'] @ (self.R_1['-'].T * self.𝜔['-'].T) - (self.h['-'] / self.b['-'])**2 * self.Γ_1_inv['-'] @ self.Λ_1['-'] @ self.e_2.T @ self.Γ_2_inv['-'] @ (self.R_2['-'].T * self.𝛿['-'].T)}
+                     '-': self.Γ_1_inv['-'] @ (self.R_1['-'].T * self.𝜔['-'].T) - (self.h['-'] / self.b['-'])**2 * self.Γ_1_inv['-'] @ self.Λ_1['-'] @ self.e_2.T @ self.Γ_2_inv['-'] @ (self.R_2['-'].T * self.𝛿['-'].T)}
         
         if type(self.𝛾) == type(None):
             self.__get_𝛾()
@@ -271,6 +271,7 @@ class pdd:
             self.h = {'-': bres.x[0], '+': bres.x[1]}
             status = bres.success
         self.b = {'+': 1/self.ρ * self.h['+'], '-': 1/self.ρ * self.h['-']}
+        
         if status == True:
             self.__build_matrices()
             self.__get_𝛾()
@@ -310,7 +311,7 @@ class pdd:
                         se_pos = se_pos.item(),
                         se_neg = se_neg.item(),
                         resid = resids,
-                        bandwidth = {'+': self.h['+'], '-': self.h['-']},
+                        bandwidth = {'+': self.h['+'].item(), '-': self.h['-'].item()},
                         n = self.n,
                         predict = predict,
                         status = status)
@@ -408,10 +409,9 @@ class rdd:
         self.ε = {'+': (self.Y - self.R_1['+'] @ self.H_1β['+']),  # (n, 1)
                   '-': (self.Y - self.R_1['-'] @ self.H_1β['-'])}  # (n, 1)
         self.σ = {'+': (self.Y - self.R_2['+'] @ self.B_2β['+']).abs(),  # (n, 1)
-                  '-': (self.Y - self.R_2['+'] @ self.B_2β['+']).abs(),}  # (n, 1)
+                  '-': (self.Y - self.R_2['-'] @ self.B_2β['-']).abs(),}  # (n, 1)
         self.Σ = {'+': torch.diag(self.σ['+'].flatten()**2),
                   '-': torch.diag(self.σ['-'].flatten()**2)}
-        
         self.P_bc = {'+': self.Γ_1_inv['+'] @ (self.R_1['+'].T * self.𝜔['+'].T) - (self.h['+'] / self.b['+'])**2 * self.Γ_1_inv['+'] @ self.Λ_1['+'] @ self.e_2.T @ self.Γ_2_inv['+'] @ (self.R_2['+'].T * self.𝛿['+'].T), 
                      '-': self.Γ_1_inv['-'] @ (self.R_1['-'].T * self.𝜔['-'].T) - (self.h['-'] / self.b['-'])**2 * self.Γ_1_inv['-'] @ self.Λ_1['-'] @ self.e_2.T @ self.Γ_2_inv['-'] @ (self.R_2['-'].T * self.𝛿['-'].T)}
         self.v_rbc = {'+': torch.sqrt((self.h['+'] / self.n) * (self.e_0.T @ self.P_bc['+'] @ self.Σ['+'] @ self.P_bc['+'].T @ self.e_0)),
@@ -596,7 +596,7 @@ class rdd:
                         se_pos = se_pos.item(),
                         se_neg = se_neg.item(),
                         resid = resids,
-                        bandwidth = {'+': self.h['+'], '-': self.h['-']},
+                        bandwidth = {'+': self.h['+'].item(), '-': self.h['-'].item()},
                         n = self.n,
                         predict = predict,
                         status = status)

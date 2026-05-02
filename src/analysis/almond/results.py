@@ -57,7 +57,7 @@ def _add_side_brackets(ax, res, color, x_offset_neg=-0.2, x_offset_pos=0.2,
                        show_pos=True, show_neg=True,
                        pos_color=None, neg_color=None):
     cutoff = 1500
-    cap = 0.08
+    cap = 0.4
 
     if pos_color is None:
         pos_color = color
@@ -93,25 +93,26 @@ def plot_res(rres, pres, Y, D):
     # Use the tighter of the two bandwidths for plotting range
     bw_neg = rres.bandwidth['-']
     bw_pos = rres.bandwidth['+']
-    x1 = np.linspace(cutoff - bw_neg, cutoff - 0.3, 200)   # stop at neg bracket
-    x2 = np.linspace(cutoff + 0.3,   cutoff + bw_pos, 200)  # start at pos bracket
+    x1 = np.linspace(cutoff - bw_neg, cutoff - 2.5, 200)   # stop at neg bracket
+    x2 = np.linspace(cutoff + 2.5,   cutoff + bw_pos, 200)  # start at pos bracket
 
     fig, ax = plt.subplots()
+    ax.scatter(D, Y, s=5, c='#eeeeee')
     ax.plot(x1, rres.predict(x1), color='#7393b3', label='RDD', linewidth=2)
     ax.plot(x2, rres.predict(x2), color='#7393b3', linewidth=2)
     ax.plot(x1, pres.predict(x1), color='#424952', label='PDD', linewidth=2)
-    ax.plot(x2, pres.predict(x2) + 0.002, color='#424952', linewidth=2)
+    ax.plot(x2, pres.predict(x2) + 0.0005, color='#424952', linewidth=2)
 
     # Bandwidth marker lines
-    ax.axvline(cutoff - bw_neg, color='#cccccc', linewidth=0.8, linestyle=':', zorder=4)
-    ax.axvline(cutoff + bw_pos, color='#cccccc', linewidth=0.8, linestyle=':', zorder=4)
+    ax.axvline(cutoff - bw_neg, color='#bbbbbb', linewidth=0.8, linestyle=':', zorder=4)
+    ax.axvline(cutoff + bw_pos, color='#bbbbbb', linewidth=0.8, linestyle=':', zorder=4)
 
     # Pos brackets: both on right side, staggered
-    _add_side_brackets(ax, rres, color='#7393b3', x_offset_pos=0.75,  show_neg=False)
-    _add_side_brackets(ax, pres, color='#424952', x_offset_pos=1.5,  show_neg=False)
+    _add_side_brackets(ax, rres, color='#7393b3', x_offset_pos=2.5,  show_neg=False)
+    _add_side_brackets(ax, pres, color='#424952', x_offset_pos=5,  show_neg=False)
     # Neg brackets: both on left side, staggered
-    _add_side_brackets(ax, rres, color='#7393b3', x_offset_neg=-0.75, show_pos=False)
-    _add_side_brackets(ax, pres, color='#424952', x_offset_neg=-1.5, show_pos=False)
+    _add_side_brackets(ax, rres, color='#7393b3', x_offset_neg=-2.5, show_pos=False)
+    _add_side_brackets(ax, pres, color='#424952', x_offset_neg=-5, show_pos=False)
 
     ax.vlines(x = 1500, ymin=-0.1, ymax=1.05, color='#000000', alpha=0.3, linestyle=(0, (8, 8)))
     ax.legend(loc='upper left')
@@ -127,18 +128,18 @@ def plot_rdd(res, Y, D):
     cutoff = 1500
     bw_neg = res.bandwidth['-']
     bw_pos = res.bandwidth['+']
-    x1 = np.linspace(cutoff - bw_neg, cutoff - 0.2, 200)
-    x2 = np.linspace(cutoff + 0.2,   cutoff + bw_pos, 200)
+    x1 = np.linspace(cutoff - bw_neg, cutoff - 2.5, 200)
+    x2 = np.linspace(cutoff + 2.5,   cutoff + bw_pos, 200)
 
     fig, ax = plt.subplots()
-    #ax.scatter(D, Y, s=5, c='#dddddd')
+    ax.scatter(D, Y, s=5, c='#eeeeee')
     ax.plot(x1, res.predict(x1), color='#7393b3', label='RDD', linewidth=2)
     ax.plot(x2, res.predict(x2), color='#7393b3', linewidth=2)
 
-    ax.axvline(cutoff - bw_neg, color='#cccccc', linewidth=0.8, linestyle=':', zorder=4)
-    ax.axvline(cutoff + bw_pos, color='#cccccc', linewidth=0.8, linestyle=':', zorder=4)
+    ax.axvline(cutoff - bw_neg, color='#bbbbbb', linewidth=0.8, linestyle=':', zorder=4)
+    ax.axvline(cutoff + bw_pos, color='#bbbbbb', linewidth=0.8, linestyle=':', zorder=4)
 
-    _add_side_brackets(ax, res, color='#7393b3', x_offset_neg=-1, x_offset_pos=1)
+    _add_side_brackets(ax, res, color='#7393b3', x_offset_neg=-2.5, x_offset_pos=2.5)
 
     ax.vlines(x = cutoff, ymin=-0.1, ymax=1.05, color='#000000', alpha=0.3, linestyle=(0, (8, 8)))
     ax.legend(loc='upper left')

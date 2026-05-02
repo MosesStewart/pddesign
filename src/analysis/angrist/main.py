@@ -449,7 +449,7 @@ class angrist_rdd:
                     '-': 1/self.weights.flatten() * torch.diag(self.σ['-'].flatten()**2)}
         else:
             self.σ = {'+': (self.Y - self.R_2['+'] @ self.B_2β['+']).abs(),  # (n, 1)
-                      '-': (self.Y - self.R_2['+'] @ self.B_2β['+']).abs(),}  # (n, 1)
+                      '-': (self.Y - self.R_2['-'] @ self.B_2β['-']).abs(),}  # (n, 1)
             self.Σ = {'+': torch.diag(self.σ['+'].flatten()**2),
                     '-': torch.diag(self.σ['-'].flatten()**2)}
         
