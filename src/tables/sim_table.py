@@ -28,10 +28,10 @@ def main():
                 while successes < band_nsims:
                     Y, W, D, Z, U = DGPs[dgp](models[model], ndraws = n, seed = reps)
                     try:
-                        design = pdd(Y, W, D, Z, cutoff = 0.0, device = 'cuda', kernel = 'triangle')
+                        design = pdd(Y, W, D, Z, cutoff = 0.0, device = 'cpu', kernel = 'triangle')
                         res_pdd = design.fit()
                         
-                        design = rdd(Y, D, cutoff = 0.0, device = 'cuda', kernel = 'triangle')
+                        design = rdd(Y, D, cutoff = 0.0, device = 'cpu', kernel = 'triangle')
                         res_rdd = design.fit()
                     except:
                         res_pdd, res_rdd = Failure(), Failure()
