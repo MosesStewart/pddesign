@@ -6,12 +6,12 @@ from derived.simulation import *
 
 def main():
     outdir = 'temp'
-    Y, W, D, Z, U = sim_unbiased(model_0, ndraws = 2500, seed = 1)
+    Y, W, D, Z, U = sim_unbiased(model_0, ndraws = 1000, seed = 1)
     
     model = pdd(Y, W, D, Z, cutoff = 0.0, device = 'cpu', kernel = 'triangle')
     res_pdd = model.fit()
     print(res_pdd)
-    print(res_pdd.bandwidth)
+    #print(res_pdd.bandwidth)
     #model = rdd(Y, D, cutoff = 0.0, device = 'cuda', kernel = 'triangle')
     #res_rdd = model.fit()
     #print(res_rdd)
