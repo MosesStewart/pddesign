@@ -15,17 +15,20 @@ plt.rc('xtick', labelsize=SMALL_SIZE)    # fontsize of the tick labels
 plt.rc('ytick', labelsize=SMALL_SIZE)    # fontsize of the tick labels
 plt.rc('legend', fontsize=SMALL_SIZE)    # legend fontsize
 plt.rc('figure', titlesize=BIGGER_SIZE)  # fontsize of the figure title
-plt.rcParams["font.family"] = "Times New Roman"
+plt.rcParams.update({
+    "font.family": "serif",
+    "mathtext.fontset": "cm",
+})
 
 def main():
     outdir = 'output/figures'
     Y, W, D, Z, U = sim_biased(model_0, ndraws = 2000, seed = 1)
     
-    model = rdd(Y, D, cutoff = 0.0, device = 'cuda', kernel = 'triangle', bandwidth = [0.50, 0.50])
+    model = rdd(Y, D, cutoff = 0.0, device = 'cuda', kernel = 'triangle')#, bandwidth = [0.50, 0.50])
     res_rdd = model.fit()
     print(res_rdd)
     
-    model = pdd(Y, W, D, Z, cutoff = 0.0, device = 'cuda', kernel = 'triangle', bandwidth = [0.50, 0.50])
+    model = pdd(Y, W, D, Z, cutoff = 0.0, device = 'cuda', kernel = 'triangle')#, bandwidth = [0.50, 0.50])
     res_pdd = model.fit()
     print(res_pdd)
     
