@@ -10,9 +10,9 @@ model_3 = lambda d: -0.84031627 * d**7 + 1.15154508 * d**6 + 0.17992519 * d**5 +
 def sim_biased(μx, ndraws = 4000, seed = 10042002):
     gen = torch.Generator().manual_seed(seed)
     U = torch.bernoulli(0.45 * torch.ones((ndraws, 1)), generator = gen)
-    V = torch.bernoulli(0.90 * torch.ones((ndraws, 1)), generator = gen)
+    V = torch.bernoulli(0.70 * torch.ones((ndraws, 1)), generator = gen)  # share of U = 1 units to the left of the cutoff; the rest fall to the right
     
-    D =  (U == 1) * ( (V == 1) * torch.log(torch.rand((ndraws, 1), generator = gen))/4 + (V == 0) * (torch.randn((ndraws, 1), generator = gen)/4 - 1/4) ) +\
+    D =  (U == 1) * ( (V == 1) * torch.log(torch.rand((ndraws, 1), generator = gen))/4 + (V == 0) * (torch.randn((ndraws, 1), generator = gen)/4 + 1/4) ) +\
          (U == 0) * ( (torch.randn((ndraws, 1), generator = gen)/4 + 1/4) )
     Z = 3*U/5 + torch.randn((ndraws, 1), generator = gen)/5 + D/10
     
@@ -23,9 +23,9 @@ def sim_biased(μx, ndraws = 4000, seed = 10042002):
 def sim_unbiased(μx, ndraws = 4000, seed = 10042002):
     gen = torch.Generator().manual_seed(seed)
     U = torch.bernoulli(0.45 * torch.ones((ndraws, 1)), generator = gen)
-    V = torch.bernoulli(0.90 * torch.ones((ndraws, 1)), generator = gen)
+    V = torch.bernoulli(0.70 * torch.ones((ndraws, 1)), generator = gen)  # share of U = 1 units to the left of the cutoff; the rest fall to the right
     
-    D =  (U == 1) * ( (V == 1) * torch.log(torch.rand((ndraws, 1), generator = gen))/4 + (V == 0) * (torch.randn((ndraws, 1), generator = gen)/4 - 1/4) ) +\
+    D =  (U == 1) * ( (V == 1) * torch.log(torch.rand((ndraws, 1), generator = gen))/4 + (V == 0) * (torch.randn((ndraws, 1), generator = gen)/4 + 1/4) ) +\
          (U == 0) * (torch.randn((ndraws, 1), generator = gen)/4 + 1/4)
     Z = 3*U/5 + torch.randn((ndraws, 1), generator = gen)/5 + D/10
     

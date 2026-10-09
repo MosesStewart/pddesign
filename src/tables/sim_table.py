@@ -7,18 +7,19 @@ from rddesign.main import *
 
 def main():
     outdir = 'output/tables'
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
     ns = [500, 2500, 10000]
     models = {'0': model_0, '1': model_1, '2': model_2, '3': model_3}
     TEs = {'0': 1, '1': 0.550595 - 0.443452, '2': 0.375062 - 3.590380, '3': 0}
     DGPs = {'no_confounding': sim_unbiased, 'confounding': sim_biased}
     band_nsims = 10
-    nsims = 400
+    nsims = 1000
     
     for dgp in DGPs.keys():
         rows = []
         for n in ns:
-            row = pd.DataFrame({'$\\tilde{\\mu}_{j}(\\cdot) = $': f'n = {n}', 'bias': '', 'Coverage': '', 'Length$': '',  '$h_{n, -}$': '', '$h_{n, +}$': '',
-                                'bias\\vphantom{l}': '', 'Coverage\\vphantom{l}': '', 'Length\\vphantom{l}': '', '$h_{n, -}$\\vphantom{l}': '', '$h_{n, +}$\\vphantom{l}': ''}, index = [0])
+            row = pd.DataFrame({'$\\tilde{\\mu}_{j}(\\cdot) = $': f'n = {n}', 'Bias': '', 'Coverage': '', 'Length': '',  '$h_{n, -}$': '', '$h_{n, +}$': '',
+                                'Bias\\vphantom{l}': '', 'Coverage\\vphantom{l}': '', 'Length\\vphantom{l}': '', '$h_{n, -}$\\vphantom{l}': '', '$h_{n, +}$\\vphantom{l}': ''}, index = [0])
             rows.append(row.set_index('$\\tilde{\\mu}_{j}(\\cdot) = $'))
             for model in models.keys():
                 band_pos_pdd, band_neg_pdd = [], []
@@ -28,10 +29,10 @@ def main():
                 while successes < band_nsims:
                     Y, W, D, Z, U = DGPs[dgp](models[model], ndraws = n, seed = reps)
                     try:
-                        design = pdd(Y, W, D, Z, cutoff = 0.0, device = 'cpu', kernel = 'triangle')
+                        design = pdd(Y, W, D, Z, cutoff = 0.0, device = device, kernel = 'triangle')
                         res_pdd = design.fit()
                         
-                        design = rdd(Y, D, cutoff = 0.0, device = 'cpu', kernel = 'triangle')
+                        design = rdd(Y, D, cutoff = 0.0, device = device, kernel = 'triangle')
                         res_rdd = design.fit()
                     except:
                         res_pdd, res_rdd = Failure(), Failure()
@@ -45,7 +46,6 @@ def main():
                         band_neg_rdd.append(res_rdd.bandwidth['-'])
                     else:
                         reps += 1
-                    print(successes, reps)
                 
                 band_pdd = [np.mean(band_neg_pdd), np.mean(band_pos_pdd)]
                 band_rdd = [np.mean(band_neg_rdd), np.mean(band_pos_rdd)]
@@ -54,10 +54,10 @@ def main():
 
                 while successes < band_nsims + nsims:
                     Y, W, D, Z, U = DGPs[dgp](models[model], ndraws = n, seed = reps)
-                    design = pdd(Y, W, D, Z, cutoff = 0.0, device = 'cuda', kernel = 'triangle', bandwidth = band_pdd)
+                    design = pdd(Y, W, D, Z, cutoff = 0.0, device = device, kernel = 'triangle', bandwidth = band_pdd)
                     res_pdd = design.fit()
                     
-                    design = rdd(Y, D, cutoff = 0.0, device = 'cuda', kernel = 'triangle', bandwidth = band_rdd)
+                    design = rdd(Y, D, cutoff = 0.0, device = device, kernel = 'triangle', bandwidth = band_rdd)
                     res_rdd = design.fit()
                     if res_pdd.status == True and res_rdd.status == True:
                         reps += 1
@@ -73,9 +73,9 @@ def main():
                     else:
                         reps += 1
 
-                row = pd.DataFrame({'$\\tilde{\\mu}_{j}(\\cdot) = $': '$\\tilde{\\mu}_{%s}(\\cdot)$\\vphantom{%d}' % (model, n), 'bias': np.mean(est_pdd) - TEs[model], 
+                row = pd.DataFrame({'$\\tilde{\\mu}_{j}(\\cdot) = $': '$\\tilde{\\mu}_{%s}(\\cdot)$\\vphantom{%d}' % (model, n), 'Bias': np.mean(est_pdd) - TEs[model], 
                                     'Coverage': 100 * np.mean(covered_pdd), 'Length': np.mean(length_pdd),  '$h_{n, -}$': band_pdd[0], '$h_{n, +}$': band_pdd[1],
-                                    'bias\\vphantom{l}': np.mean(est_rdd) - TEs[model], 'Coverage\\vphantom{l}': 100 * np.mean(covered_rdd), 'Length\\vphantom{l}$': np.mean(length_rdd), 
+                                    'Bias\\vphantom{l}': np.mean(est_rdd) - TEs[model], 'Coverage\\vphantom{l}': 100 * np.mean(covered_rdd), 'Length\\vphantom{l}': np.mean(length_rdd), 
                                     '$h_{n, -}$\\vphantom{l}': band_rdd[0], '$h_{n, +}$\\vphantom{l}': band_rdd[1]}, index = [0])
                 rows.append(row.set_index('$\\tilde{\\mu}_{j}(\\cdot) = $'))
             

@@ -1,0 +1,31 @@
+\renewcommand{\arraystretch}{1.5}
+\begin{table}[H]
+\begin{center}
+<insert caption>
+\begin{tabular}{l@{\hskip 1em}c@{\hskip 1em}c@{\hskip 1em}c@{\hskip 1em}c@{\hskip 1em}c@{\hskip 1em}c@{\hskip 1em}c@{\hskip 1em}c@{\hskip 1em}c@{\hskip 1em}c}
+\toprule
+& \multicolumn{4}{c}{PDD} & \multicolumn{4}{c}{RDD} \\[-0.25em] 
+\cmidrule(r{2em}){2-5} \cmidrule(r){6-9} & \\[-1.75em]
+\hline
+ $\tilde{\mu}_{j}(\cdot) = $              &   Bias &   Coverage &   Length &   $h_{n, -}$ &   $h_{n, +}$ &   Bias\vphantom{l} &   Coverage\vphantom{l} &   Length\vphantom{l} &   $h_{n, -}$\vphantom{l} &   $h_{n, +}$\vphantom{l} \\
+\hline
+ n = 500                                  &     &         &       &           &           &                 &                     &                   &                       &                       \\
+ $\tilde{\mu}_{0}(\cdot)$\vphantom{500}   &  -0    &       94.8 &     0.37 &         0.23 &         0.18 &              -0    &                   94.2 &                 0.34 &                     0.2  &                     0.19 \\
+ $\tilde{\mu}_{1}(\cdot)$\vphantom{500}   &   0.01 &       94.8 &     0.38 &         0.21 &         0.19 &               0    &                   94   &                 0.35 &                     0.19 &                     0.19 \\
+ $\tilde{\mu}_{2}(\cdot)$\vphantom{500}   &  -0    &       94.2 &     1.01 &         0.22 &         0.1  &               0    &                   93.3 &                 0.47 &                     0.19 &                     0.1  \\
+ $\tilde{\mu}_{3}(\cdot)$\vphantom{500}   &  -0    &       94.6 &     0.39 &         0.19 &         0.18 &               0    &                   94.2 &                 0.36 &                     0.16 &                     0.18 \\
+ n = 2500                                 &     &         &       &           &           &                 &                     &                   &                       &                       \\
+ $\tilde{\mu}_{0}(\cdot)$\vphantom{2500}  &   0    &       95.7 &     0.14 &         0.25 &         0.22 &              -0    &                   95.3 &                 0.14 &                     0.23 &                     0.22 \\
+ $\tilde{\mu}_{1}(\cdot)$\vphantom{2500}  &   0.01 &       95.7 &     0.15 &         0.17 &         0.22 &               0.01 &                   94.8 &                 0.15 &                     0.15 &                     0.22 \\
+ $\tilde{\mu}_{2}(\cdot)$\vphantom{2500}  &   0.01 &       95.6 &     0.25 &         0.19 &         0.07 &               0.01 &                   95   &                 0.23 &                     0.17 &                     0.07 \\
+ $\tilde{\mu}_{3}(\cdot)$\vphantom{2500}  &   0    &       95.7 &     0.17 &         0.13 &         0.17 &               0    &                   95.6 &                 0.17 &                     0.12 &                     0.17 \\
+ n = 10000                                &     &         &       &           &           &                 &                     &                   &                       &                       \\
+ $\tilde{\mu}_{0}(\cdot)$\vphantom{10000} &     &       94.4 &       &         0.25 &         0.22 &                 &                   94.9 &                   &                     0.22 &                     0.22 \\
+ $\tilde{\mu}_{1}(\cdot)$\vphantom{10000} &     &       94.6 &       &         0.12 &         0.21 &                 &                   95   &                   &                     0.11 &                     0.21 \\
+ $\tilde{\mu}_{2}(\cdot)$\vphantom{10000} &     &       95   &       &         0.14 &         0.05 &                 &                   95.2 &                   &                     0.13 &                     0.05 \\
+ $\tilde{\mu}_{3}(\cdot)$\vphantom{10000} &     &       95.3 &       &         0.11 &         0.13 &                 &                   95.2 &                   &                     0.1  &                     0.13 \\
+\hline
+\end{tabular}
+\end{center}
+\medskip
+\end{table}
